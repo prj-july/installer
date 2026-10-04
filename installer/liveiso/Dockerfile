@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 COPY assets /build/assets
+COPY gui /build/gui
 COPY build.sh /build/build.sh
 RUN chmod +x /build/build.sh
 

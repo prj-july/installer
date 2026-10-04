@@ -11,7 +11,7 @@ fi
 
 # Bake a build id into the image so the running installer can tell the user
 # exactly which build they booted (this prevents stale-USB confusion).
-BUILD_ID="$(date +%Y%m%d-%H%M)-$( (cat build.sh prepare_assets.sh 2>/dev/null || true) | sha256sum | cut -c1-8)"
+BUILD_ID="$(date +%Y%m%d-%H%M)-$( (cat build.sh prepare_assets.sh gui/server.py gui/web/*.html gui/web/*.css gui/web/*.js 2>/dev/null || true) | sha256sum | cut -c1-8)"
 if [ -d assets ]; then
   printf '%s\n' "$BUILD_ID" > assets/BUILD_ID
 else
