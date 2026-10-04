@@ -216,4 +216,19 @@ if [ -d /data/june/upstream-content ]; then
    fi
 fi
 
+# --- June Local: keep the server logs readable -----------------------------
+# june-local creates capture.jsonl / june-local.log as 0600 root; the adb
+# shell cannot read them.  A tiny root-side loop keeps them world-readable so
+# captures can be pulled with plain adb (no root, no UMS boot).
+(
+   while :; do
+      /system/bin/busybox chmod 0644 \
+         /data/june/logs/capture.jsonl \
+         /data/june/logs/june-local.log \
+         /data/june/logs/jcm_patch.log \
+         /data/june/logs/remotes_patch.log 2>/dev/null
+      sleep 5
+   done
+) &
+
 setprop ro.june_encfs 1
