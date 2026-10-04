@@ -22,16 +22,54 @@ The host needs Docker or Podman (build runs `live-build` inside the container).
   for recovery.
 - Balena Etcher also works, but a plain Etcher flash is read-only; in that case
   keep a separate USB drive available for backups.
-- Boot the laptop from the USB.
-- The live system auto-logs in and opens the **June Local installer menu**
-  automatically. Follow the prompts.
+- Boot the laptop from the USB. The boot menu has two entries:
+  - **June Local installer** (default after 5 seconds): the graphical
+    installer, driven with the mouse.
+  - **June Local installer (text mode)**: the `whiptail` menu, for machines
+    where graphics do not work.
+- The live system auto-logs in and opens the installer automatically. If the
+  graphics cannot start, it falls back to the text menu by itself.
 - If the menu is closed or you need a shell, run `june-menu` to reopen it.
+  Ctrl+Alt+F2 gives a shell while the graphical installer runs.
+
+## Graphical installer
+
+`gui/` holds the graphical installer:
+
+- `server.py`: a Python standard-library backend on port 80. It runs the same
+  `install.sh` / `backup.sh` workers as the text menu and streams their
+  progress to the page over server-sent events.
+- `web/`: the page (plain HTML, CSS and JavaScript, no build step). Its look
+  follows the July Oven card ("Still Glass": the oven's black glass, Barlow
+  fonts, bundled under the SIL OFL so nothing loads from the internet).
+- `june-kiosk`: runs `cage` + `cog` (WPE WebKit) fullscreen on tty1. It tries
+  GPU rendering, then software (pixman), then falls back to the text menu.
+- `june-gui.service`: the systemd unit for the backend.
+
+**Phone access.** With a network cable plugged in, *Connect a phone* shows a
+QR code. The phone gets the same screens, can start and follow jobs, and can
+download the companion app (and the per-home `ca.crt`) straight from the
+installer. Phone access is off until switched on; the code carries a random
+token, and switching it off disconnects phones and makes a new code. Settings
+that change the PC itself (text mode, restart, shut down, phone access) are
+only available on the installer screen. Wi-Fi is not set up yet.
+
+**Developing the UI** without an oven or a live USB:
+
+```bash
+bash installer/liveiso/gui/dev/run-mock.sh   # then open http://localhost:8765/
+```
+
+Mock mode simulates the oven and the workers (`gui/dev/mock_worker.py`); the
+MOCK panel in the corner switches the oven on and off and makes the next job
+fail. Open the page from another device (or this machine's LAN address) to see
+the phone view.
 
 ## Notes
 
-- The ISO is a minimal Debian live environment with no desktop.
-- The menu uses `whiptail` (a lightweight terminal UI), so it still feels like
-  a guided installer without shipping a full X11 desktop.
+- The ISO is a minimal Debian live environment with no desktop: the graphical
+  installer is one fullscreen page in a Wayland kiosk, not a desktop session.
+- The text menu uses `whiptail` (a lightweight terminal UI).
 - The installer auto-detects the June eMMC by size, explicitly skips the boot
   USB/system disk, and refuses to touch other disks.
 - The menu also offers full eMMC **backup to USB** and **restore from USB**

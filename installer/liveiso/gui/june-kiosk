@@ -1,0 +1,58 @@
+#!/bin/bash
+# Graphical installer on tty1: cage (a Wayland kiosk compositor) running cog
+# (WPE WebKit) fullscreen on the local backend.  Falls back to the text menu
+# when the graphics stack cannot start, or when the user picks "Switch to the
+# text installer" in the GUI (the backend writes /run/june-ui-mode).
+set -u
+
+URL="http://127.0.0.1/"
+MODE_FILE=/run/june-ui-mode
+LOG=/tmp/june-kiosk.log
+
+text_menu() {
+  clear
+  exec /usr/local/bin/june-menu
+}
+
+if ! command -v cage >/dev/null 2>&1 || ! command -v cog >/dev/null 2>&1; then
+  echo "cage/cog not installed; starting the text installer." >>"$LOG"
+  text_menu
+fi
+
+# Keep kernel messages off the screen while graphics start.
+sudo -n dmesg -n 1 2>/dev/null || true
+
+echo "Starting the graphical installer..."
+for _ in $(seq 1 40); do
+  (exec 3<>/dev/tcp/127.0.0.1/80) 2>/dev/null && break
+  sleep 0.5
+done
+
+# GPU rendering first; pixman (software) for machines whose GPU driver or
+# firmware is missing.  A session that dies within 15 s counts as a failed
+# start and moves to the next renderer; after the last one, use the text menu.
+renderers=(auto pixman)
+r=0
+while :; do
+  [ "$(cat "$MODE_FILE" 2>/dev/null)" = "text" ] && text_menu
+  if [ "${renderers[$r]}" = "auto" ]; then
+    unset WLR_RENDERER
+  else
+    export WLR_RENDERER="${renderers[$r]}"
+  fi
+  echo "=== $(date '+%F %T') cage (renderer ${renderers[$r]})" >>"$LOG"
+  start="$(date +%s)"
+  cage -d -s -- cog --platform=wl "$URL" >>"$LOG" 2>&1
+  rc=$?
+  echo "=== cage exited with $rc" >>"$LOG"
+  [ "$(cat "$MODE_FILE" 2>/dev/null)" = "text" ] && text_menu
+  if [ $(( $(date +%s) - start )) -lt 15 ]; then
+    r=$((r + 1))
+    if [ "$r" -ge "${#renderers[@]}" ]; then
+      echo "Graphics did not start (details in $LOG); using the text installer." >&2
+      sleep 2
+      text_menu
+    fi
+  fi
+  sleep 1
+done

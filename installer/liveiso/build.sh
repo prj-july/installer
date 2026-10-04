@@ -22,7 +22,17 @@ chmod +x \
   "config/includes.chroot$PAYLOAD/sign_leaf.sh" \
   "config/includes.chroot$PAYLOAD/tegrarcm"
 
-# Extra runtime packages for the live system (menu UI + deploy dependencies).
+# Graphical installer: Python backend + web UI (see gui/).  The dev/ mock
+# tooling stays out of the image.
+rsync -a --exclude dev/ /build/gui/ "config/includes.chroot$PAYLOAD/gui/"
+mkdir -p config/includes.chroot/etc/systemd/system config/includes.chroot/usr/local/bin
+mv "config/includes.chroot$PAYLOAD/gui/june-gui.service" config/includes.chroot/etc/systemd/system/
+mv "config/includes.chroot$PAYLOAD/gui/june-kiosk" config/includes.chroot/usr/local/bin/
+chmod +x config/includes.chroot/usr/local/bin/june-kiosk
+
+# Extra runtime packages for the live system (menu UI + deploy dependencies,
+# then the GUI: cage kiosk compositor, cog/WPE WebKit, Mesa for GPU and
+# software rendering, logind seat access, the backend and QR codes).
 mkdir -p config/package-lists
 cat > config/package-lists/june.list.chroot <<'EOF'
 whiptail
@@ -35,7 +45,42 @@ usbutils
 libcrypto++8
 libusb-1.0-0
 libstdc++6
+cage
+cog
+libgl1-mesa-dri
+libegl-mesa0
+dbus
+libpam-systemd
+python3
+qrencode
+iproute2
+fonts-dejavu-core
 EOF
+
+# Wired DHCP so a phone on the same network can reach the installer.
+mkdir -p config/includes.chroot/etc/systemd/network
+cat > config/includes.chroot/etc/systemd/network/20-june-wired.network <<'EOF'
+[Match]
+Name=en* eth*
+
+[Network]
+DHCP=yes
+EOF
+
+# Enable the GUI backend and networkd; mask ifupdown (if present) so a NIC
+# never gets two DHCP clients.
+mkdir -p config/hooks/normal
+cat > config/hooks/normal/9100-june-services.hook.chroot <<'EOF'
+#!/bin/sh
+set -e
+systemctl enable june-gui.service systemd-networkd.service
+for unit in networking.service ifup@.service; do
+  if [ -e "/lib/systemd/system/$unit" ]; then
+    systemctl mask "$unit"
+  fi
+done
+EOF
+chmod +x config/hooks/normal/9100-june-services.hook.chroot
 
 # Menu + helper available on the live system.
 mkdir -p config/includes.chroot/usr/local/bin
@@ -56,6 +101,10 @@ on_interrupt() {
   exit 130
 }
 trap on_interrupt INT TERM HUP
+
+# Keep kernel messages (e.g. Bluetooth -110 timeouts) off the menu.  loglevel=0
+# on the cmdline does not always survive to here, so pin it again.
+sudo -n dmesg -n 1 2>/dev/null || true
 
 banner() {
   echo "=============================================="
@@ -132,13 +181,40 @@ log_stage_line() {
   printf '%s' "$line"
 }
 
+# Newest dd progress record in the log as "<bytes> <MB/s>".  dd pads shorter
+# records with trailing spaces and switches between kB/s, MB/s and GB/s, so
+# match loosely and normalise the rate (0 when unknown).
+log_dd_record() {
+  tr '\r' '\n' < "$1" 2>/dev/null \
+    | grep -E '^[0-9]+ bytes .*copied, ' | tail -n 1 \
+    | awk '{
+        r = 0; u = ""
+        for (i = NF; i > 1; i--) if ($i ~ /\/s$/) { r = $(i-1); u = $i; break }
+        if (u == "kB/s") r /= 1000
+        else if (u == "GB/s") r *= 1000
+        else if (u == "B/s" || u == "bytes/s") r /= 1000000
+        else if (u != "MB/s") r = 0
+        printf "%s %.1f\n", $1, r
+      }'
+}
+
+# Percentage of the oven image copied so far (0 when no dd record yet).
+log_progress_pct() {
+  local rec bytes
+  rec="$(log_dd_record "$1")"
+  bytes="${rec%% *}"
+  case "$bytes" in ''|*[!0-9]*) echo 0; return ;; esac
+  [ "$bytes" -le "$IMAGE_BYTES" ] || bytes="$IMAGE_BYTES"
+  echo $(( bytes * 100 / IMAGE_BYTES ))
+}
+
 # One clean progress line built from the newest dd progress record in the log.
 log_progress_line() {
   local log="$1" rec bytes rate pct copied remain eta_s eta
-  rec="$(tr '\r' '\n' < "$log" 2>/dev/null | grep -E '^[0-9]+ bytes \(.*copied, [0-9.]+ s, [0-9.]+ MB/s$' | tail -n 1 || true)"
+  rec="$(log_dd_record "$log")"
   [ -n "$rec" ] || return 1
-  bytes="$(printf '%s\n' "$rec" | awk '{print $1}')"
-  rate="$(printf '%s\n' "$rec" | awk '{for (i=1;i<=NF;i++) if ($i=="MB/s") print $(i-1)}')"
+  bytes="${rec%% *}"
+  rate="${rec#* }"
   case "$bytes" in ''|*[!0-9]*) return 1 ;; esac
   [ "$bytes" -le "$IMAGE_BYTES" ] || bytes="$IMAGE_BYTES"
   pct=$(( bytes * 100 / IMAGE_BYTES ))
@@ -234,21 +310,28 @@ to about 2 minutes, then the installer reports success or failure." \
 
 run_backup() {
   local mode="$1"; shift
-  local pid rc
+  local pid rc msg feed
   INSTALL_LOG="$(mktemp /tmp/june-backup.XXXXXX.log)"
   if command -v whiptail >/dev/null 2>&1; then
-    (sudo -n bash "$BACKUP" "$mode" "$@" >"$INSTALL_LOG" 2>&1) &
+    # Background jobs get /dev/null as stdin; restore's confirmation prompt
+    # needs the answer the menu already collected.
+    feed=""
+    [ "$mode" = "restore" ] && feed="RESTORE"
+    (printf '%s\n' "$feed" | sudo -n bash "$BACKUP" "$mode" "$@" >"$INSTALL_LOG" 2>&1) &
     pid=$!
+    # whiptail --gauge protocol: "XXX", percent, prompt, "XXX".  whiptail only
+    # reads one prompt line, so send line breaks as a literal \n it expands.
+    # The text area keeps the height of the initial prompt, hence the padding.
     while kill -0 "$pid" 2>/dev/null; do
-      whiptail --title "Backup in progress" \
-        --infobox "$(progress_text "$INSTALL_LOG")
+      msg="$(progress_text "$INSTALL_LOG")
 
-The oven image is 7.3 GiB (~7.8 GB) and is written to the USB drive as one file.
-Typical write time: ~26 min at 5 MB/s, ~13 min at 10 MB/s, ~9 min at 15 MB/s.
-Do not unplug the oven or the USB drive." \
-        16 78
+The oven image is 7.3 GiB (~7.8 GB) and is written as one file.
+Typical: ~26 min at 5 MB/s, ~13 min at 10 MB/s, ~9 min at 15 MB/s.
+Do not unplug the oven or the USB drive."
+      printf 'XXX\n%s\n%s\nXXX\n' "$(log_progress_pct "$INSTALL_LOG")" "${msg//$'\n'/\\n}"
       sleep 1
-    done
+    done | whiptail --title "Backup in progress" \
+      --gauge "Starting...\n\n\n\n\n\n\n" 14 78 0
     wait "$pid"; rc=$?
     clear
   else
@@ -335,8 +418,8 @@ It signs a unique oven certificate for your LAN IP and hostname, installs that C
 
 Oven LAN IP and hostname:"
   result="$(dialog --stdout --no-cancel --visit-items --form "$form_text" 0 0 3 \
-    "Oven LAN IP:" 1 1 "192.168.1." 1 22 40 0 \
-    "Hostname:" 2 1 "june.local" 2 22 40 0)" || return 1
+    "Oven LAN IP (e.g. 192.168.1.50):" 1 1 "192.168.1." 1 35 36 0 \
+    "Hostname:" 2 1 "june.local" 2 35 36 0)" || return 1
   clear
   ip="$(printf '%s\n' "$result" | sed -n '1p')"
   host="$(printf '%s\n' "$result" | sed -n '2p')"
@@ -421,10 +504,14 @@ show_success() {
 }
 
 show_failure() {
-  local action="${1:-Install}" choice
+  local action="${1:-Install}" choice reason=""
+  # Surface the worker's own "[-] ..." explanation instead of only the log path.
+  if [ -n "${INSTALL_LOG:-}" ]; then
+    reason="$(tr '\r' '\n' < "$INSTALL_LOG" 2>/dev/null | grep -E '^\[-\] ' | tail -n 3 | cut -c5-200 || true)"
+  fi
   choice="$(whiptail --title "June Local installer" \
-    --menu "${action} did not finish.\n\n${PERSIST_MSG}\n\nWhat would you like to do next?" \
-    16 78 3 \
+    --menu "${action} did not finish.\n\n${reason:+$reason\n\n}${PERSIST_MSG}\n\nWhat would you like to do next?" \
+    24 78 3 \
     "log" "Show the full log" \
     "back" "Back to the menu" 3>&1 1>&2 2>&3)" || return 0
   if [ "$choice" = "log" ]; then
@@ -505,8 +592,17 @@ if command -v whiptail >/dev/null 2>&1; then
       restore)
         choose_destination restore || continue
         whiptail --title "Restore oven from USB" \
-          --yesno "This writes a previously created backup image back to the June eMMC from:\n\n$BACKUP_DEST${BACKUP_FOLDER:+/$BACKUP_FOLDER}\n\nThis DESTROYS the current contents of the oven. Put the oven in RCM mode.\n\nType RESTORE when prompted by the restore script." \
-          18 78 --yes-button "Continue" --no-button "Back" || continue
+          --yesno "This writes a previously created backup image back to the June eMMC from:\n\n$BACKUP_DEST${BACKUP_FOLDER:+/$BACKUP_FOLDER}\n\nThis DESTROYS the current contents of the oven. Put the oven in RCM mode." \
+          16 78 --yes-button "Continue" --no-button "Back" || continue
+        # The worker runs in the background with no terminal, so collect its
+        # RESTORE confirmation here and hand it over on stdin (run_backup).
+        confirm="$(whiptail --title "Confirm restore" \
+          --inputbox "Type RESTORE to erase the oven and restore the backup:" \
+          10 78 "" --ok-button "Restore" --cancel-button "Back" 3>&1 1>&2 2>&3)" || continue
+        if [ "$confirm" != "RESTORE" ]; then
+          whiptail --title "Restore oven from USB" --msgbox "Restore cancelled: the confirmation did not match RESTORE." 8 78
+          continue
+        fi
         await_oven || continue
         if run_backup restore "$BACKUP_DEST" "$BACKUP_FOLDER"; then
           persist_log
@@ -649,13 +745,21 @@ user ALL=(ALL) NOPASSWD: ALL
 EOF
 chmod 0440 config/includes.chroot/etc/sudoers.d/june-live
 
-# Start the installer menu automatically after login, but only on a real
+# Start the installer automatically after login, but only on a real
 # interactive console so the user can still drop to a shell if needed.
+# tty1 gets the graphical installer unless the "text mode" boot entry passed
+# june.ui=text; june-kiosk itself falls back to the text menu.
 mkdir -p config/includes.chroot/etc/profile.d
 cat > config/includes.chroot/etc/profile.d/zz-june-menu.sh <<'EOF'
 if [ "${BASH_VERSION:-}" ] && [ "$(id -u)" -ne 0 ]; then
   case "$(tty 2>/dev/null)" in
-    /dev/tty1|/dev/ttyS0)
+    /dev/tty1)
+      case " $(cat /proc/cmdline 2>/dev/null) " in
+        *" june.ui=text "*) [ -x /usr/local/bin/june-menu ] && /usr/local/bin/june-menu ;;
+        *) [ -x /usr/local/bin/june-kiosk ] && /usr/local/bin/june-kiosk ;;
+      esac
+      ;;
+    /dev/ttyS0)
       if [ -x /usr/local/bin/june-menu ]; then
         /usr/local/bin/june-menu
       fi
@@ -675,12 +779,43 @@ lb config \
   --mirror-bootstrap http://deb.debian.org/debian \
   --mirror-chroot http://deb.debian.org/debian
 
-# Boot the single "Live system (amd64)" entry automatically after a few seconds
-# instead of waiting for a key press.  ISOLINUX uses tenths of a second, so
-# 50 = 5 seconds.
+# Two boot entries: the graphical installer (default) and the text installer.
+# Boot the default automatically after 5 seconds instead of waiting for a key
+# press.  ISOLINUX uses tenths of a second, so 50 = 5 seconds.  live-build
+# fills in the @...@ kernel/initrd/append placeholders (binary_grub_cfg for
+# GRUB/UEFI, live.cfg.in for ISOLINUX/BIOS).
 mkdir -p config/bootloaders/grub-pc config/bootloaders/isolinux
+cat > config/bootloaders/grub-pc/grub.cfg <<'EOF'
+source /boot/grub/config.cfg
+
+menuentry "June Local installer" --hotkey=g {
+	linux	@KERNEL_LIVE@ @APPEND_LIVE@ june.ui=gui
+	initrd	@INITRD_LIVE@
+}
+
+menuentry "June Local installer (text mode)" --hotkey=t {
+	linux	@KERNEL_LIVE@ @APPEND_LIVE@ june.ui=text
+	initrd	@INITRD_LIVE@
+}
+EOF
+
+cat > config/bootloaders/isolinux/live.cfg.in <<'EOF'
+label june-gui
+	menu label ^June Local installer
+	menu default
+	linux @LINUX@
+	initrd @INITRD@
+	append @APPEND_LIVE@ june.ui=gui
+
+label june-text
+	menu label June Local installer (^text mode)
+	linux @LINUX@
+	initrd @INITRD@
+	append @APPEND_LIVE@ june.ui=text
+EOF
+
 cat > config/bootloaders/grub-pc/config.cfg <<'EOF'
-set timeout=0
+set timeout=5
 set default=0
 
 if [ x$feature_default_font_path = xy ] ; then
@@ -717,7 +852,7 @@ cat > config/bootloaders/isolinux/isolinux.cfg <<'EOF'
 include menu.cfg
 default vesamenu.c32
 prompt 0
-timeout 1
+timeout 50
 EOF
 
 lb build
