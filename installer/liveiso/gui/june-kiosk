@@ -9,6 +9,13 @@ URL="http://127.0.0.1/"
 MODE_FILE=/run/june-ui-mode
 LOG=/tmp/june-kiosk.log
 
+# cage/wlroots needs a private runtime dir.  When the kiosk is started as root
+# from the login shell (see /etc/profile.d/zz-june-menu.sh) there is no user
+# runtime dir, and without one cage exits with "XDG_RUNTIME_DIR is not set".
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/june-kiosk}"
+mkdir -p "$XDG_RUNTIME_DIR" 2>/dev/null || true
+chmod 700 "$XDG_RUNTIME_DIR" 2>/dev/null || true
+
 text_menu() {
   clear
   exec /usr/local/bin/june-menu
@@ -41,12 +48,35 @@ while :; do
     export WLR_RENDERER="${renderers[$r]}"
   fi
   echo "=== $(date '+%F %T') cage (renderer ${renderers[$r]})" >>"$LOG"
+  pkill -x cage 2>/dev/null || true
+  rm -f "$XDG_RUNTIME_DIR/wayland-0" "$XDG_RUNTIME_DIR/wayland-0.lock" 2>/dev/null || true
   start="$(date +%s)"
-  cage -d -s -- cog --platform=wl "$URL" >>"$LOG" 2>&1
+  cage -d -s -- cog --platform=wl "$URL" >>"$LOG" 2>&1 &
+  cage_pid=$!
+
+  # Startup watchdog: cage must publish its Wayland socket within 20 s.  A
+  # failed seat/libseat handshake used to leave cage running forever, which
+  # kept the whole installer on the console with no text-menu fallback.
+  socket_ok=0
+  for _ in $(seq 1 40); do
+    if [ -S "$XDG_RUNTIME_DIR/wayland-0" ]; then
+      socket_ok=1
+      break
+    fi
+    kill -0 "$cage_pid" 2>/dev/null || break
+    sleep 0.5
+  done
+  if [ "$socket_ok" != "1" ]; then
+    echo "=== cage watchdog: no Wayland socket after 20s; killing $cage_pid" >>"$LOG"
+    kill "$cage_pid" 2>/dev/null || true
+    sleep 1
+    kill -9 "$cage_pid" 2>/dev/null || true
+  fi
+  wait "$cage_pid" 2>/dev/null
   rc=$?
   echo "=== cage exited with $rc" >>"$LOG"
   [ "$(cat "$MODE_FILE" 2>/dev/null)" = "text" ] && text_menu
-  if [ $(( $(date +%s) - start )) -lt 15 ]; then
+  if [ "$socket_ok" != "1" ] || [ $(( $(date +%s) - start )) -lt 15 ]; then
     r=$((r + 1))
     if [ "$r" -ge "${#renderers[@]}" ]; then
       echo "Graphics did not start (details in $LOG); using the text installer." >&2

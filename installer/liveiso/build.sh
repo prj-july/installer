@@ -756,7 +756,13 @@ if [ "${BASH_VERSION:-}" ] && [ "$(id -u)" -ne 0 ]; then
     /dev/tty1)
       case " $(cat /proc/cmdline 2>/dev/null) " in
         *" june.ui=text "*) [ -x /usr/local/bin/june-menu ] && /usr/local/bin/june-menu ;;
-        *) [ -x /usr/local/bin/june-kiosk ] && /usr/local/bin/june-kiosk ;;
+        # cage needs a logind seat and DRM access; as the live user libseat
+        # refuses the session and cage hangs.  sudo is NOPASSWD for the live
+        # user, so run the kiosk as root and fall back to the user session if
+        # sudo is unavailable.
+        *) if [ -x /usr/local/bin/june-kiosk ]; then
+             sudo -n /usr/local/bin/june-kiosk || /usr/local/bin/june-kiosk
+           fi ;;
       esac
       ;;
     /dev/ttyS0)
