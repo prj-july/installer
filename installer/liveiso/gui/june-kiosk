@@ -16,6 +16,10 @@ export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/june-kiosk}"
 mkdir -p "$XDG_RUNTIME_DIR" 2>/dev/null || true
 chmod 700 "$XDG_RUNTIME_DIR" 2>/dev/null || true
 
+# This image has no logind seat; cage/session access goes through seatd, which
+# the live-config component 0040-june-seat authorises for the live user.
+export LIBSEAT_BACKEND=seatd
+
 text_menu() {
   persist_log
   clear

@@ -47,6 +47,7 @@ libusb-1.0-0
 libstdc++6
 cage
 cog
+seatd
 libgl1-mesa-dri
 libegl-mesa0
 dbus
@@ -80,7 +81,7 @@ mkdir -p config/hooks/normal
 cat > config/hooks/normal/9100-june-services.hook.chroot <<'EOF'
 #!/bin/sh
 set -e
-systemctl enable june-gui.service systemd-networkd.service
+systemctl enable june-gui.service systemd-networkd.service seatd.service
 for unit in networking.service ifup@.service; do
   if [ -e "/lib/systemd/system/$unit" ]; then
     systemctl mask "$unit"
@@ -88,6 +89,27 @@ for unit in networking.service ifup@.service; do
 done
 EOF
 chmod +x config/hooks/normal/9100-june-services.hook.chroot
+
+# The live user needs access to the seatd socket before login: cage gets its
+# DRM/VT session through seatd (this image has no usable logind seat).
+mkdir -p config/includes.chroot/usr/lib/live/config
+cat > config/includes.chroot/usr/lib/live/config/0040-june-seat <<'EOF'
+#!/bin/sh
+
+Init ()
+{
+	:
+}
+
+Config ()
+{
+	if getent passwd "${LIVE_USERNAME}" >/dev/null 2>&1
+	then
+		usermod -aG seat "${LIVE_USERNAME}" 2>/dev/null || true
+	fi
+}
+EOF
+chmod +x config/includes.chroot/usr/lib/live/config/0040-june-seat
 
 # Menu + helper available on the live system.
 mkdir -p config/includes.chroot/usr/local/bin
@@ -763,13 +785,10 @@ if [ "${BASH_VERSION:-}" ] && [ "$(id -u)" -ne 0 ]; then
     /dev/tty1)
       case " $(cat /proc/cmdline 2>/dev/null) " in
         *" june.ui=text "*) [ -x /usr/local/bin/june-menu ] && /usr/local/bin/june-menu ;;
-        # cage needs a logind seat and DRM access; as the live user libseat
-        # refuses the session and cage hangs.  sudo is NOPASSWD for the live
-        # user, so run the kiosk as root and fall back to the user session if
-        # sudo is unavailable.
-        *) if [ -x /usr/local/bin/june-kiosk ]; then
-             sudo -n /usr/local/bin/june-kiosk || /usr/local/bin/june-kiosk
-           fi ;;
+        # cage refuses to run as root and needs a seat; seatd (enabled here,
+        # with the live user added to its group by the live-config component
+        # 0040-june-seat) provides the DRM/VT session for the live user.
+        *) [ -x /usr/local/bin/june-kiosk ] && /usr/local/bin/june-kiosk ;;
       esac
       ;;
     /dev/ttyS0)
