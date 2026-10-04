@@ -7,8 +7,13 @@ installer/liveiso/assets/
 *.p12
 *.jks
 *.keystore
-*june-local.key
+*.key
+*.key.bak*
+*.pem
 *junelife_chain*.crt
+# generate_certs.sh output (CA and leaf private keys) and CA scratch
+certs/
+ca-tmp/
 *.img
 *.bct
 *.bin
