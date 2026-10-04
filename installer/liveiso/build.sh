@@ -801,12 +801,12 @@ mkdir -p config/bootloaders/grub-pc config/bootloaders/isolinux
 cat > config/bootloaders/grub-pc/grub.cfg <<'EOF'
 source /boot/grub/config.cfg
 
-menuentry "June Local installer" --hotkey=g {
+menuentry "Install June Local - graphical (default)" --hotkey=g {
 	linux	@KERNEL_LIVE@ @APPEND_LIVE@ june.ui=gui
 	initrd	@INITRD_LIVE@
 }
 
-menuentry "June Local installer (text mode)" --hotkey=t {
+menuentry "Install June Local - text mode (basic UI)" --hotkey=t {
 	linux	@KERNEL_LIVE@ @APPEND_LIVE@ june.ui=text
 	initrd	@INITRD_LIVE@
 }
@@ -814,21 +814,21 @@ EOF
 
 cat > config/bootloaders/isolinux/live.cfg.in <<'EOF'
 label june-gui
-	menu label ^June Local installer
+	menu label ^Install June Local - graphical (default)
 	menu default
 	linux @LINUX@
 	initrd @INITRD@
 	append @APPEND_LIVE@ june.ui=gui
 
 label june-text
-	menu label June Local installer (^text mode)
+	menu label Install June Local - text mode (basic UI)
 	linux @LINUX@
 	initrd @INITRD@
 	append @APPEND_LIVE@ june.ui=text
 EOF
 
 cat > config/bootloaders/grub-pc/config.cfg <<'EOF'
-set timeout=5
+set timeout=3
 set default=0
 
 if [ x$feature_default_font_path = xy ] ; then
@@ -865,7 +865,7 @@ cat > config/bootloaders/isolinux/isolinux.cfg <<'EOF'
 include menu.cfg
 default vesamenu.c32
 prompt 0
-timeout 50
+timeout 30
 EOF
 
 lb build

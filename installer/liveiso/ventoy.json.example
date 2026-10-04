@@ -4,5 +4,8 @@
     { "VTOY_DEFAULT_SEARCH_ROOT": "/" },
     { "VTOY_MENU_TIMEOUT": "1" },
     { "VTOY_SECONDARY_BOOT_MENU": "0" }
+  ],
+  "menu_alias": [
+    { "image": "/june-local-live.iso", "alias": "Install June Local (GUI default, text option)" }
   ]
 }
