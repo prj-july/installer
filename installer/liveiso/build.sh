@@ -55,6 +55,13 @@ python3
 qrencode
 iproute2
 fonts-dejavu-core
+# GPU + Wi-Fi firmware: without these, laptops whose display driver needs
+# firmware (AMD amdgpu, Intel i915, NVIDIA nouveau) never create /dev/dri,
+# so the cage/Wayland kiosk cannot start ("Found 0 GPUs").
+firmware-amd-graphics
+firmware-misc-nonfree
+firmware-iwlwifi
+firmware-realtek
 EOF
 
 # Wired DHCP so a phone on the same network can reach the installer.
@@ -781,7 +788,7 @@ lb config \
   --binary-images iso-hybrid \
   --bootappend-live "boot=live components toram quiet splash loglevel=0" \
   --debian-installer false \
-  --archive-areas main \
+  --archive-areas "main contrib non-free-firmware" \
   --mirror-bootstrap http://deb.debian.org/debian \
   --mirror-chroot http://deb.debian.org/debian
 
