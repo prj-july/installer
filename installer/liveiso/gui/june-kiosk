@@ -17,8 +17,20 @@ mkdir -p "$XDG_RUNTIME_DIR" 2>/dev/null || true
 chmod 700 "$XDG_RUNTIME_DIR" 2>/dev/null || true
 
 text_menu() {
+  persist_log
   clear
   exec /usr/local/bin/june-menu
+}
+
+# Leave the kiosk log on the boot USB so a failed graphical start can be
+# inspected from a normal machine later.
+persist_log() {
+  local mnt
+  mnt="$(bash /opt/june-installer/backup.sh ventoy-dir 2>/dev/null || true)"
+  [ -n "$mnt" ] || return 0
+  mkdir -p "$mnt/june-logs" 2>/dev/null || return 0
+  cp -f "$LOG" "$mnt/june-logs/june-kiosk.log" 2>/dev/null || return 0
+  sync 2>/dev/null || true
 }
 
 if ! command -v cage >/dev/null 2>&1 || ! command -v cog >/dev/null 2>&1; then
@@ -46,6 +58,7 @@ while :; do
     unset WLR_RENDERER
   else
     export WLR_RENDERER="${renderers[$r]}"
+    export WLR_RENDERER_ALLOW_SOFTWARE=1
   fi
   echo "=== $(date '+%F %T') cage (renderer ${renderers[$r]})" >>"$LOG"
   pkill -x cage 2>/dev/null || true
@@ -66,12 +79,30 @@ while :; do
     kill -0 "$cage_pid" 2>/dev/null || break
     sleep 0.5
   done
+  # The socket only means the compositor came up; the web view (cog) must be
+  # alive too, otherwise the screen would stay black forever.
+  if [ "$socket_ok" = "1" ]; then
+    cog_ok=0
+    for _ in $(seq 1 30); do
+      if pgrep -x cog >/dev/null 2>&1; then
+        cog_ok=1
+        break
+      fi
+      kill -0 "$cage_pid" 2>/dev/null || break
+      sleep 0.5
+    done
+    if [ "$cog_ok" != "1" ]; then
+      echo "=== cog did not start within 15s; treating the renderer as failed" >>"$LOG"
+      socket_ok=0
+    fi
+  fi
   if [ "$socket_ok" != "1" ]; then
     echo "=== cage watchdog: no Wayland socket after 20s; killing $cage_pid" >>"$LOG"
     kill "$cage_pid" 2>/dev/null || true
     sleep 1
     kill -9 "$cage_pid" 2>/dev/null || true
   fi
+  persist_log
   wait "$cage_pid" 2>/dev/null
   rc=$?
   echo "=== cage exited with $rc" >>"$LOG"
