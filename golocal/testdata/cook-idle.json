@@ -1,0 +1,9 @@
+{
+  "connection_state": "connected",
+  "device_state": {
+    "state": "idle",
+    "temperature_cavity": 28000,
+    "door_open": false
+  },
+  "cook_plan": null
+}

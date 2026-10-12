@@ -1,0 +1,27 @@
+{
+  "connection_state": "connected",
+  "device_state": {
+    "state": "cooking",
+    "cook_mode": "bake",
+    "temperature_cavity": 175500,
+    "temperature_probe": 64000,
+    "cook_time_remaining": 540000,
+    "door_open": false
+  },
+  "cook_plan": {
+    "food": {
+      "name": "Salmon",
+      "plan": {
+        "steps": [
+          {
+            "cook_mode": "bake",
+            "temperature_cavity": 177000,
+            "exit_criteria": [
+              {"type": "duration", "target": {"value": 900000}}
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

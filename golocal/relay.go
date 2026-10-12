@@ -175,6 +175,11 @@ func relay(hub *Hub, peer *Peer, raw []byte) {
 				hub.setDeviceStateRaw(raw)
 			case 10013, 10014:
 				cameraEnabledFlag.Store(true)
+				if int64(code) == 10013 && data != nil {
+					if b, err := json.Marshal(data); err == nil {
+						hub.setCookingState(b)
+					}
+				}
 				var plan any
 				if data != nil {
 					if p, ok := data["cook_plan_data"]; ok {

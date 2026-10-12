@@ -109,7 +109,8 @@ When it finishes, the screen says **“June Local is installed”** and shows:
 1. Unplug the oven’s power and the USB cable.
 2. Wait 10 seconds, plug the power back in and let the oven start normally.
 3. From a device on the same network, open **`http://<oven-ip>/local`**. You
-   should see the June Local status page.
+   should see the June Local status page. Cook temperature and timer are at
+   **`http://<oven-ip>/local/cook.html`** (JSON at `/local/cook`).
 4. Pair from the June app or Home Assistant. Then close up the oven.
 
 If you chose persistence, the no-pin patch is staged in `/system` and applied
@@ -252,7 +253,8 @@ Assets: `website-assets/png/10-troubleshooting.png`,
 
 - The oven reboots normally into June’s UI.
 - Open `http://<oven-ip>/local` from any device on the network to confirm
-  June Local is running.
+  June Local is running. Cook temperature, timer and state are at
+  `http://<oven-ip>/local/cook` (JSON) and `/local/cook.html` (page).
 - Pair from the June app or Home Assistant.
 - Check the Project July clients page for the companion app and the Home
   Assistant integration.

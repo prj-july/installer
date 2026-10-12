@@ -39,6 +39,7 @@ type Config struct {
 	MediaURL        string
 	MJPEGFps        int
 	MJPEGViewerGate bool
+	Fixture         string
 }
 
 var (
@@ -147,6 +148,12 @@ func main() {
 	if cfg.OvenID != "" {
 		hub.setOvenID(cfg.OvenID)
 	}
+	if cfg.Fixture != "" {
+		if err := loadStatusFixture(hub, cfg.Fixture); err != nil {
+			log.Fatalf("fixture %s: %v", cfg.Fixture, err)
+		}
+		logLine("[init] loaded cook fixture %s", cfg.Fixture)
+	}
 	startStatusRefresher(hub, cfg)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -229,6 +236,7 @@ func parseFlags() *Config {
 	flag.StringVar(&cfg.MediaURL, "media-url", "", "public base URL for rewritten 10011 image_url (empty = keep original)")
 	flag.IntVar(&cfg.MJPEGFps, "mjpeg-fps", 10, "MJPEG stream frame rate")
 	flag.BoolVar(&cfg.MJPEGViewerGate, "mjpeg-viewer-gate", true, "open the camera gate while an MJPEG client is watching")
+	flag.StringVar(&cfg.Fixture, "fixture", "", "JSON file with device_state/cook_plan for local testing (no oven)")
 	flag.Parse()
 	return cfg
 }

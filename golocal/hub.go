@@ -41,6 +41,7 @@ type Hub struct {
 	devices            map[string]DeviceInfo
 	lastStatus         StatusSnapshot
 	lastDeviceStateRaw []byte
+	lastCookingState   json.RawMessage
 	ovenID             string
 	framesSeen         int
 	observeOnly        bool
@@ -63,6 +64,8 @@ type StatusSnapshot struct {
 	ConnectionState string          `json:"connection_state"`
 	DeviceState     json.RawMessage `json:"device_state"`
 	CookPlan        json.RawMessage `json:"cook_plan"`
+	CookingState    json.RawMessage `json:"cooking_state,omitempty"`
+	DeviceStateAt   time.Time       `json:"-"`
 }
 
 type Pairing struct {
@@ -307,7 +310,37 @@ func (h *Hub) getOvenID() string {
 func (h *Hub) setDeviceState(raw json.RawMessage) {
 	h.mu.Lock()
 	h.lastStatus.DeviceState = raw
+	h.lastStatus.DeviceStateAt = time.Now()
 	h.mu.Unlock()
+}
+
+func (h *Hub) setCookingState(raw json.RawMessage) {
+	h.mu.Lock()
+	h.lastStatus.CookingState = raw
+	h.lastCookingState = raw
+	h.mu.Unlock()
+}
+
+func (h *Hub) applyFixture(connection string, device, plan, cooking json.RawMessage) {
+	h.mu.Lock()
+	if connection != "" {
+		h.lastStatus.ConnectionState = connection
+	}
+	if len(device) > 0 && string(device) != "null" {
+		h.lastStatus.DeviceState = device
+		h.lastStatus.DeviceStateAt = time.Now()
+	}
+	if len(plan) > 0 {
+		h.lastStatus.CookPlan = plan
+	}
+	if len(cooking) > 0 && string(cooking) != "null" {
+		h.lastStatus.CookingState = cooking
+		h.lastCookingState = cooking
+	}
+	h.mu.Unlock()
+	if connection == "connected" {
+		lastOvenFrameNano.Store(time.Now().UnixNano())
+	}
 }
 
 func (h *Hub) setDeviceStateRaw(raw []byte) {

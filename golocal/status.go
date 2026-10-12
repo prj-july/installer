@@ -79,11 +79,16 @@ type OvenStatus struct {
 }
 
 type CookStatus struct {
-	State      string          `json:"state"`
-	Mode       string          `json:"mode,omitempty"`
-	TargetC    float64         `json:"target_c,omitempty"`
-	EtaSeconds int64           `json:"eta_seconds,omitempty"`
-	Plan       json.RawMessage `json:"plan,omitempty"`
+	State            string          `json:"state"`
+	Mode             string          `json:"mode,omitempty"`
+	CurrentC         float64         `json:"current_c,omitempty"`
+	TargetC          float64         `json:"target_c,omitempty"`
+	RemainingSeconds int64           `json:"remaining_seconds,omitempty"`
+	EtaSeconds       int64           `json:"eta_seconds,omitempty"`
+	DoorOpen         *bool           `json:"door_open,omitempty"`
+	ProbeC           float64         `json:"probe_c,omitempty"`
+	UpdatedAt        string          `json:"updated_at,omitempty"`
+	Plan             json.RawMessage `json:"plan,omitempty"`
 }
 
 type CameraStatus struct {
@@ -395,54 +400,7 @@ func refreshStatus(hub *Hub, cfg *Config) {
 }
 
 func cookFromSnapshot(st StatusSnapshot) CookStatus {
-	c := CookStatus{State: "idle"}
-	if len(st.DeviceState) > 0 {
-		var ds map[string]any
-		if json.Unmarshal(st.DeviceState, &ds) == nil {
-			if s, ok := ds["state"].(string); ok && s != "" {
-				c.State = s
-			}
-		}
-	}
-	if len(st.CookPlan) > 0 && string(st.CookPlan) != "null" {
-		c.Plan = st.CookPlan
-		var plan struct {
-			Food struct {
-				Name string `json:"name"`
-				Plan struct {
-					Steps []struct {
-						CookMode          string `json:"cook_mode"`
-						TemperatureCavity int    `json:"temperature_cavity"`
-						ExitCriteria      []struct {
-							Type   string `json:"type"`
-							Target struct {
-								Value any `json:"value"`
-							} `json:"target"`
-						} `json:"exit_criteria"`
-					} `json:"steps"`
-				} `json:"plan"`
-			} `json:"food"`
-		}
-		if json.Unmarshal(st.CookPlan, &plan) == nil {
-			c.Mode = plan.Food.Name
-			for _, step := range plan.Food.Plan.Steps {
-				if step.CookMode != "" {
-					c.Mode = step.CookMode
-				}
-				if step.TemperatureCavity > 0 {
-					c.TargetC = float64(step.TemperatureCavity) / 1000
-				}
-				for _, ec := range step.ExitCriteria {
-					if ec.Type == "duration" {
-						if v, ok := ec.Target.Value.(float64); ok {
-							c.EtaSeconds += int64(v) / 1000
-						}
-					}
-				}
-			}
-		}
-	}
-	return c
+	return parseCook(st)
 }
 
 func clientsFromHub(hub *Hub) ClientsStatus {
