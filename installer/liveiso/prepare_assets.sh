@@ -1165,6 +1165,90 @@ if [ "$MODE" = "images" ]; then
   exit 0
 fi
 
+# verify_backup_image IMAGE: size + SHA256, no oven required. Prefers
+# june-backup when the ISO payload includes it.
+verify_backup_image() {
+  local image="$1"
+  if [ -z "$image" ] || [ ! -f "$image" ]; then
+    echo "[-] Backup image not found: ${image:-(none)}" >&2
+    echo "[-] Pick a .img file made by this installer." >&2
+    return 1
+  fi
+  if [ -x "$DIR/june-backup" ]; then
+    "$DIR/june-backup" verify -image "$image"
+    return $?
+  fi
+  local sz want got
+  sz="$(stat -c '%s' "$image" 2>/dev/null || echo 0)"
+  if [ "$sz" != "$EXPECTED_SIZE" ]; then
+    echo "[-] This backup file is the wrong size" >&2
+    echo "[-] $image is $sz bytes; a June oven backup is $EXPECTED_SIZE bytes (about 7.8 GB)." >&2
+    echo "[-] This is not a complete oven image. Do not restore it." >&2
+    return 1
+  fi
+  if [ ! -f "$image.sha256" ]; then
+    echo "[-] This backup has no SHA256 file" >&2
+    echo "[-] Expected $(basename "$image").sha256 next to the image." >&2
+    echo "[-] Refusing to restore an unverified backup. Make a new backup, or run: backup.sh checksum $image" >&2
+    return 1
+  fi
+  want="$(awk '{print $1; exit}' "$image.sha256" | tr 'A-F' 'a-f')"
+  echo "[*] Verifying backup with SHA256 (reads the whole image back; usually 1-3 minutes)..."
+  got="$(sha256sum "$image" | awk '{print $1}')"
+  if [ "$want" != "$got" ]; then
+    echo "[-] The backup file does not match its SHA256" >&2
+    echo "[-] Recorded: $want" >&2
+    echo "[-] Computed: $got" >&2
+    echo "[-] The file is damaged, incomplete, or was changed after it was made. Do not restore it." >&2
+    return 1
+  fi
+  echo "[+] Backup image OK: $image ($sz bytes)"
+  echo "[+] SHA256: $got"
+}
+
+write_backup_sidecar() {
+  local image="$1" hash
+  if [ -x "$DIR/june-backup" ]; then
+    "$DIR/june-backup" checksum -image "$image"
+    return $?
+  fi
+  hash="$(sha256sum "$image" | awk '{print $1}')"
+  printf '%s  %s\n' "$hash" "$(basename "$image")" > "$image.sha256"
+  echo "[+] SHA256 sidecar: $image.sha256"
+  echo "[+] SHA256: $hash"
+}
+
+if [ "$MODE" = "verify" ]; then
+  verify_backup_image "${2:-}" || exit 1
+  exit 0
+fi
+
+if [ "$MODE" = "checksum" ]; then
+  image="${2:-}"
+  if [ -z "$image" ] || [ ! -f "$image" ]; then
+    echo "[-] Backup image not found: ${image:-(none)}" >&2
+    exit 1
+  fi
+  write_backup_sidecar "$image" || exit 1
+  exit 0
+fi
+
+if [ "$MODE" = "restore-dry" ]; then
+  echo "[*] Dry-run restore (nothing will be written)"
+  image="${2:-}"
+  if [ -x "$DIR/june-backup" ]; then
+    if [ -n "${3:-}" ]; then
+      "$DIR/june-backup" restore -image "$image" -device "$3" -dry-run || exit 1
+    else
+      "$DIR/june-backup" restore -image "$image" -dry-run || exit 1
+    fi
+  else
+    verify_backup_image "$image" || exit 1
+    echo "[+] Image is usable. Nothing was written."
+  fi
+  exit 0
+fi
+
 if [ -f "$DIR/BUILD_ID" ]; then
   echo "[*] Installer $(cat "$DIR/VERSION" 2>/dev/null || echo unknown), build: $(cat "$DIR/BUILD_ID")"
 fi
@@ -1218,9 +1302,8 @@ case "$MODE" in
     echo "[*] Writing backup image to: $out"
     dd if="$JUNE_DISK" of="$out" bs=4M conv=fsync status=progress
     echo "[*] Verifying backup with SHA256 (reads the whole image back; usually 1-3 minutes)..."
-    sha256sum "$out" > "$out.sha256"
+    write_backup_sidecar "$out" || exit 1
     echo "[+] Backup complete: $out"
-    echo "[+] SHA256: $(cut -d' ' -f1 "$out.sha256")"
     ;;
   restore)
     echo "[*] Looking for June backup images on USB..."
@@ -1246,10 +1329,11 @@ case "$MODE" in
         exit 1
       fi
     fi
-    sz="$(stat -c '%s' "$image" 2>/dev/null || echo 0)"
-    if [ "$sz" != "$EXPECTED_SIZE" ]; then
-      echo "[-] Backup size mismatch: $image is $sz bytes, expected $EXPECTED_SIZE." >&2
-      exit 1
+    echo "[*] Verifying backup image before writing..."
+    if [ -x "$DIR/june-backup" ]; then
+      "$DIR/june-backup" restore -image "$image" -device "$JUNE_DISK" -dry-run || exit 1
+    else
+      verify_backup_image "$image" || exit 1
     fi
     echo "[*] WARNING: this overwrites the oven eMMC with $image"
     read -rp "Type RESTORE to continue: " confirm
@@ -1259,7 +1343,7 @@ case "$MODE" in
     echo "[+] Restore complete."
     ;;
   *)
-    echo "usage: backup.sh [backup|restore]" >&2
+    echo "usage: backup.sh [backup|restore|verify|checksum|restore-dry]" >&2
     exit 2
     ;;
 esac
@@ -1270,6 +1354,12 @@ echo "power it on normally."
 echo "Guide: $GUIDE_URL"
 EOF
 chmod +x "$DEST/install.sh" "$DEST/tegrarcm" "$DEST/backup.sh"
+BACKUP_SRC="$ARCH/installer/backup"
+if [ -d "$BACKUP_SRC/cmd/june-backup" ] && command -v go >/dev/null 2>&1; then
+  echo "[*] building june-backup"
+  (cd "$BACKUP_SRC" && CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o "$SCRIPT_DIR/$DEST/june-backup" ./cmd/june-backup)
+  chmod +x "$DEST/june-backup"
+fi
 
 echo "assets prepared in $DEST"
 ls -l "$DEST"

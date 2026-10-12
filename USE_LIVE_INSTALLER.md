@@ -160,7 +160,15 @@ Assets: `website-assets/png/11-install-options.png`,
 5. The progress screen shows GiB, MB/s, ETA, and the tracker. A backup takes
    roughly 15–30 minutes at typical USB speeds.
 6. On success, the installer writes the `.img` file and a `.sha256` file next
-   to it. Safely unplug the drive, then unplug the oven’s power and USB cable.
+   to it (the checksum file names the image by its basename, so it still
+   checks after the stick is remounted). Safely unplug the drive, then unplug
+   the oven’s power and USB cable.
+
+You can check a backup later without the oven:
+
+```sh
+backup.sh verify /path/to/261012-1200.img
+```
 
 Logs are saved to `june-logs/` on the stick's data partition (`JUNE` or
 `Ventoy`).
@@ -170,7 +178,11 @@ Assets: `website-assets/png/15-backup-destination.png`,
 
 ## 6. Restore a backup
 
-Restoring replaces everything on the oven with the backup image.
+Restoring replaces everything on the oven with the backup image. The installer
+checks the image size and SHA256 *before* it writes, and refuses if the file
+is the wrong size, the `.sha256` sidecar is missing, or the digest does not
+match. Type **RESTORE** is still required; a dry-run of the same checks runs
+first so a damaged backup never reaches the oven.
 
 1. Choose **Restore a backup**.
 2. Pick the drive that holds the backup image, press **Find backups**, and
@@ -179,9 +191,15 @@ Restoring replaces everything on the oven with the backup image.
    changes since the backup are removed.
 4. Press **Next: connect the oven**, put the oven in RCM mode, and press
    **Erase oven and restore**.
-5. Wait for the progress and verify steps to finish. Do not unplug the oven.
+5. Wait for the verify step, then the write. Do not unplug the oven.
 6. On success, unplug the oven’s power and USB cable, close up the oven, then
    switch it on normally.
+
+To check a restore without writing (no oven needed for the image checks):
+
+```sh
+backup.sh restore-dry /path/to/261012-1200.img
+```
 
 ## 7. Use your phone
 
@@ -241,6 +259,8 @@ start** button. The details panel and the USB log show the last steps.
 | “Waiting for the oven” never changes | USB cable seated in the laptop (not a hub), SW2 held while powering on, oven power on. Try **Start without detecting** only if you know the oven is in RCM. |
 | No usable backup drive | Drive is exFAT/NTFS/ext4 and writable; at least 8 GB free; rescan. |
 | Wrong size on a restore image | The image is not a complete 7.8 GB oven backup. |
+| “This backup has no SHA256 file” | The `.sha256` sidecar is missing. Make a new backup, or run `backup.sh checksum` on the `.img` only if you trust that copy. |
+| “The backup file does not match its SHA256” | The image is damaged or incomplete. Do not restore it. |
 | Secure Boot verification error | Ventoy sticks only: enroll Ventoy’s key or disable Secure Boot. June USB sticks start with Secure Boot on. |
 | Graphical installer falls back to text | On builds before 2026-10-05 the kiosk log showed `Cannot find Xwayland binary "/usr/bin/Xwayland"`; the current image includes Xwayland and retries the software renderer. Update the USB image, or use the text UI on the older stick. |
 | Job failed part-way | Do not unplug the oven; use **Try again**. If it repeats, save `june-logs/` and ask for help. |

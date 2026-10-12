@@ -48,6 +48,7 @@ Then follow [`USE_LIVE_INSTALLER.md`](USE_LIVE_INSTALLER.md).
 
 ```
 installer/liveiso/   build the ISO (Docker + live-build) and the installer menu
+installer/backup/    june-backup: verify oven images and dry-run restore
 installer/usbtool/   June USB: Windows/Mac app (and Linux CLI) that makes the
                      installer USB stick
 golocal/             Go source for june-local and june-camerad (make oven,
