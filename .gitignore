@@ -26,6 +26,7 @@ ca-tmp/
 upstream-content/
 # Go build output (built with make oven / make camerad)
 golocal/bin/
+installer/backup/june-backup
 
 # CIFS silly-rename artifacts (files deleted while still open on the NAS)
 .__smbfile*

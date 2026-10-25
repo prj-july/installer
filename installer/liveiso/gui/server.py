@@ -59,7 +59,7 @@ ACTION_STEPS = {
     "install": ["connect", "rcm", "emmc", "deploy"],
     "custom": ["certs", "connect", "rcm", "emmc", "deploy"],
     "backup": ["connect", "rcm", "emmc", "copy", "verify"],
-    "restore": ["connect", "rcm", "emmc", "write"],
+    "restore": ["connect", "rcm", "emmc", "verify", "write"],
 }
 ACTION_TITLES = {
     "install": "Installing June Local",
@@ -73,7 +73,7 @@ STEP_PATTERNS = [
     ("emmc", re.compile(r"Waiting for the June eMMC|target disk:")),
     ("deploy", re.compile(r"Install log:|^\[\*\] binary:|flashing boot image")),
     ("copy", re.compile(r"Writing backup image to:")),
-    ("verify", re.compile(r"Verifying backup with SHA256")),
+    ("verify", re.compile(r"Verifying backup")),
     ("write", re.compile(r"^\[\*\] Restoring .* -> ")),
 ]
 # Steps 0..CANCELLABLE_UNTIL only wait for the oven; nothing is written yet.

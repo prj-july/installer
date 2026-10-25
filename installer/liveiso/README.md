@@ -77,7 +77,9 @@ the phone view.
   USB/system disk, and refuses to touch other disks.
 - The menu also offers full eMMC **backup to USB** and **restore from USB**
   (the destination needs at least 8 GB free, and can be the boot USB itself:
-  its `JUNE` or `Ventoy` data partition).
+  its `JUNE` or `Ventoy` data partition). Restore checks the `.sha256` sidecar
+  and dry-runs before it writes; `backup.sh verify` and `june-backup` do the
+  same checks without an oven (see `installer/backup/README.md`).
 - Custom install now asks whether the JuneCloudMessaging patch payload should
   be staged in `/system` (persists across factory reset) or `/data` (does not).
   The app update is applied on the next boot by the June Local copy of

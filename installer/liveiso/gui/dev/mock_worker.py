@@ -97,6 +97,9 @@ def backup(args: list[str]) -> None:
     elif mode == "restore":
         confirm = sys.stdin.readline().strip()
         say("[*] Looking for June backup images on USB...")
+        say("[*] Verifying backup image before writing...")
+        say("[+] Backup image OK: " + (args[3] if len(args) > 3 else "oven.img") + " (7818182656 bytes)")
+        say("[+] SHA256: 3f9a0c1e5b7d2a4c6e8f0a1b3c5d7e9f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d")
         say("[*] WARNING: this overwrites the oven eMMC with " + (args[3] if len(args) > 3 else "?"))
         if confirm != "RESTORE":
             say("[-] Aborted.")
