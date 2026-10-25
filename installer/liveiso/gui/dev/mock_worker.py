@@ -106,6 +106,11 @@ def backup(args: list[str]) -> None:
             sys.exit(1)
         say("[*] Restoring " + (args[3] if len(args) > 3 else "?") + " -> /dev/sdb")
         dd("restore")
+        # Real dd (conv=fsync) prints its last 100% progress record before the
+        # fsync and then goes quiet for minutes while the write cache drains.
+        # Hold the same silence here so the GUI's finishing state is visible in
+        # mock mode instead of flashing past.
+        time.sleep(6 / SPEED)
         say("[+] Restore complete.")
 
 

@@ -214,7 +214,10 @@ still required.
    changes since the backup are removed.
 4. Press **Next: connect the oven**, put the oven in RCM mode, and press
    **Erase oven and restore**.
-5. Wait for the verify step, then the write. Do not unplug the oven.
+5. Wait for the verify step, then the write. The progress bar can sit at
+   **100%** for several minutes afterwards while the oven's storage finishes
+   flushing; the screen says it is **finishing** and keeps counting. Do not
+   unplug the oven.
 6. On success, unplug the oven’s power and USB cable, close up the oven, then
    switch it on normally.
 
@@ -263,6 +266,11 @@ Asset: `website-assets/png/17-text-mode.png`.
 ## 9. Reading the progress screen
 
 - **Percent** means the write/verify progress is known.
+- **Finishing** means every byte has been written and the installer is still
+  flushing (or, for a backup, checksumming) the image. The bar can stay at
+  **100%** for several minutes; that is normal, and the screen keeps counting
+  so you can see it is still working. Do not unplug anything until the success
+  screen appears.
 - **Elapsed time** means the installer is still estimating.
 - **GiB and MB/s** are the amount written and the current speed.
 - **Tracker** shows the current step; a failure marks the failed step with `!`.

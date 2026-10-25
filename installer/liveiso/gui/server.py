@@ -111,6 +111,7 @@ class LogWatcher:
         self.steps_seen: set[str] = set()
         self.dd: tuple[int, float] | None = None  # (bytes, MB/s)
         self.dd_at = 0.0
+        self.image_done_at: float | None = None  # when dd reported the whole image
 
     def poll(self) -> None:
         try:
@@ -147,6 +148,13 @@ class LogWatcher:
                 break
         self.dd = (int(m.group(1)), rate)
         self.dd_at = now()
+        if self.dd[0] >= IMAGE_BYTES and self.image_done_at is None:
+            # Every byte has been handed to the kernel, but the worker can keep
+            # running for minutes afterwards: dd's conv=fsync has to drain the
+            # write cache before dd exits (and a backup then reads the whole
+            # image back for SHA256).  Remember the moment so progress() can
+            # report an honest finishing phase instead of "0 s left".
+            self.image_done_at = now()
         return True
 
     def _line(self, line: str) -> None:
@@ -173,13 +181,38 @@ class LogWatcher:
             return None
         done, rate = self.dd
         done = min(done, IMAGE_BYTES)
+        if self.image_done_at is not None:
+            # All bytes are written, but the worker is still flushing and/or
+            # verifying.  A byte-count ETA here would be "0 s left" for minutes
+            # (the tester's "100% then 0 S LEFT" bug), so report the finishing
+            # phase instead: no ETA, just how long it has been finishing, so the
+            # UI can say so and keep proving the job is alive.
+            return {
+                "bytes": IMAGE_BYTES,
+                "total": IMAGE_BYTES,
+                "pct": 100.0,
+                "rate": round(rate, 1),
+                "eta": None,
+                "phase": "finishing",
+                "finishing": int(now() - self.image_done_at),
+            }
         eta = int((IMAGE_BYTES - done) / 1e6 / rate) if rate > 0.1 else None
+        if eta is not None:
+            # Rounding down to 0 while bytes remain is the old "0 s left" bug.
+            eta = max(eta, 1)
+        pct = round(done * 100 / IMAGE_BYTES, 1)
+        if pct >= 100.0:
+            # Keep 100% for the finishing phase only; the last block can round
+            # up to 100.0 while a sliver of the image is still being written.
+            pct = 99.9
         return {
             "bytes": done,
             "total": IMAGE_BYTES,
-            "pct": round(done * 100 / IMAGE_BYTES, 1),
+            "pct": pct,
             "rate": round(rate, 1),
             "eta": eta,
+            "phase": "writing",
+            "finishing": 0,
         }
 
 

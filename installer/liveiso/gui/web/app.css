@@ -196,6 +196,13 @@ a.btn { text-decoration: none; }
 .warnline { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; background: rgba(251,191,36,.08); box-shadow: inset 0 0 0 1px rgba(251,191,36,.35); font: 500 16px/1.4 var(--f); margin: 16px 0; }
 .warnline .mark { width: 22px; height: 22px; margin-top: 1px; }
 
+/* Time expectation for a full oven-storage job, shown right above the final
+   (destructive) button. Ember like the tiles, not amber: it is information
+   about how long the job takes, not a warning that something is wrong. */
+.notice { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; margin: 18px 0 0; background: radial-gradient(120% 120% at 0% 50%, var(--tGlow), transparent 55%), var(--panel); box-shadow: inset 0 0 0 1px var(--tRim); font: 500 16px/1.45 var(--f); }
+.notice .mark { width: 22px; height: 22px; margin-top: 1px; }
+.notice b { color: var(--fg); font-weight: 600; }
+
 /* ---- Connect the oven -------------------------------------------------- */
 .connect { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 28px; align-items: start; }
 .illus { border-radius: 16px; background: var(--log); box-shadow: inset 0 0 0 1px var(--rim); padding: 12px; }
@@ -240,6 +247,10 @@ a.btn { text-decoration: none; }
 .tracker li.fail .n { box-shadow: inset 0 0 0 2px var(--amber); color: var(--amber); }
 .keep { display: flex; gap: 10px; align-items: center; margin-top: 22px; font: 500 16px/1.35 var(--f); color: var(--fg2); }
 .keep .mark { width: 20px; height: 20px; }
+/* While the write finishes after 100%, the "keep it connected" line becomes
+   the thing to read: amber block, larger mark, same copy as the .warnline. */
+.keep.alert { align-items: flex-start; padding: 14px 16px; border-radius: 12px; margin-top: 18px; background: rgba(251,191,36,.08); box-shadow: inset 0 0 0 1px rgba(251,191,36,.35); color: var(--fg); font: 500 16px/1.4 var(--f); }
+.keep.alert .mark { width: 22px; height: 22px; margin-top: 1px; }
 
 details.log { margin-top: 28px; border-top: 1px solid var(--line); padding-top: 8px; }
 details.log summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; height: 48px; cursor: pointer; font: 500 16px/1 var(--f); color: var(--fg2); }

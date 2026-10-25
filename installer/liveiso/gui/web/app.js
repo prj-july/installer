@@ -51,7 +51,7 @@ const ACTIONS = {
   },
   restore: {
     name: "Restore a backup",
-    sub: "Puts a backup image back on the oven.",
+    sub: "Puts a backup image back on the oven. About 15 to 30 minutes; it can sit at 100% while it finishes.",
     steps: ["Backup", "Connect oven", "Restore"], go: "Erase oven and restore",
   },
 };
@@ -80,7 +80,7 @@ function clock(sec) {
   const pad = (n) => String(n).padStart(2, "0");
   return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 }
-const left = (sec) => (sec >= 90 ? `${Math.round(sec / 60)} min` : `${sec} s`);
+const left = (sec) => (sec >= 90 ? `${Math.round(sec / 60)} min` : `${Math.max(1, Math.round(sec))} s`);
 function defaultFilename() {
   const d = new Date(), p = (n) => String(n).padStart(2, "0");
   return `${String(d.getFullYear()).slice(2)}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.img`;
@@ -227,6 +227,21 @@ function errLine() {
   return ui.error ? `<div class="err" role="alert">${MARK.warn}<span>${esc(ui.error)}</span></div>` : "";
 }
 
+/* The oven's storage is 7.3 GiB: a backup or restore usually takes 15 to 30
+   minutes on the USB path, and the last part happens *after* the percentage
+   reaches 100% (the kernel still has to flush the write, and a backup still
+   reads the whole image back for its SHA256).  Say so before the destructive
+   button, so nobody gives up on a job that is still working. */
+function timeNotice(action) {
+  if (action === "restore") {
+    return `<div class="notice">${MARK.warn}<span><b>A full restore writes about 7.3 GiB and usually takes 15 to 30 minutes.</b> It can sit at 100% for several more minutes while the oven's storage finishes writing. Keep the oven connected and powered, and do not unplug anything until the success screen appears.</span></div>`;
+  }
+  if (action === "backup") {
+    return `<div class="notice">${MARK.warn}<span><b>A full backup reads about 7.3 GiB and usually takes 15 to 30 minutes.</b> It can sit at 100% for a minute or two while the checksum is read back. Keep the oven connected and powered, and do not unplug anything until the success screen appears.</span></div>`;
+  }
+  return "";
+}
+
 function viewOptions() {
   const a = ACTIONS[ui.action], f = ui.form;
   let body = "", canNext = true;
@@ -280,7 +295,7 @@ function viewOptions() {
         <div class="row"><button class="btn ghost" type="button" data-do="find"${f.dest ? "" : " disabled"}>Find backups</button></div>
         ${imgs}
         ${f.image ? `
-          <div class="warnline">${MARK.warn}<span>Restoring replaces everything on the oven with <b>${esc(f.image)}</b>. June Local and any changes since the backup are removed.</span></div>
+          <div class="warnline">${MARK.warn}<span>Restoring replaces everything on the oven with <b>${esc(f.image)}</b>. June Local and any changes since the backup are removed. A full restore takes about 15 to 30 minutes.</span></div>
           <div class="fields"><div class="field"><label for="f-confirm">Type RESTORE to confirm</label><input id="f-confirm" name="confirm" autocomplete="off" spellcheck="false" autocapitalize="characters" value="${esc(f.confirm || "")}"></div></div>` : ""}`;
       canNext = !!(f.dest && f.image && f.confirm === "RESTORE");
     } else {
@@ -394,6 +409,7 @@ function viewConnect() {
           <div class="illus">${ILLUSTRATION}</div>
         </div>
         ${detectHTML()}
+        ${timeNotice(ui.action)}
         ${errLine()}
         <div class="actions">
           <button class="btn${danger ? " danger" : ""}" type="button" id="go" data-do="go"${S.oven.present && !ui.busy ? "" : " disabled"}>${esc(a.go)}</button>
@@ -429,7 +445,7 @@ function jobRunningShell(j) {
         <div class="st" id="j-st"></div>
         <div class="bar" id="j-bar"><i></i></div>
         <div class="facts" id="j-facts"></div>
-        <div class="keep">${MARK.warn}<span>Keep the oven connected and powered. Don't unplug anything.</span></div>
+        <div class="keep" id="j-keep">${MARK.warn}<span>Keep the oven connected and powered. Don't unplug anything.</span></div>
         <div class="actions" id="j-actions"></div>
         ${logDetails()}
       </div>
@@ -455,11 +471,16 @@ function updateJob(j) {
   const set = (id, html) => { const el = document.getElementById(id); if (el && el.innerHTML !== html) el.innerHTML = html; };
   const p = j.progress;
   if (j.status === "running") {
-    const stepLabel = (j.steps[j.step] || {}).label || "Working";
+    // The write can reach the end of the image while the worker is still
+    // flushing it (conv=fsync) or reading it back for SHA256.  Show an explicit
+    // finishing state there: a byte-count ETA would read "0 s left" for minutes.
+    const finishing = !!(p && p.phase === "finishing");
+    const stepLabel = `${(j.steps[j.step] || {}).label || "Working"}${finishing ? " — finishing" : ""}`;
     if (p && p.pct > 0) set("j-hero", `${Math.floor(p.pct)}<small>%</small>`);
     else set("j-hero", clock(j.elapsed));
     // The hero already shows elapsed time when there is no percentage.
-    const q = p && p.eta != null ? `· ${left(p.eta)} left` : p ? "· estimating" : "· elapsed";
+    const q = finishing ? "· do not unplug"
+      : p && p.eta != null ? `· ${left(p.eta)} left` : p ? "· estimating" : "· elapsed";
     set("j-st", `${MARK.run}<span>${esc(stepLabel)}</span><span class="q">${esc(q)}</span>`);
     const bar = $("#j-bar");
     if (bar) {
@@ -467,8 +488,26 @@ function updateJob(j) {
       bar.style.setProperty("--p", p ? (p.pct / 100).toFixed(4) : "0");
     }
     let facts = j.stage ? esc(j.stage) : "Starting…";
-    if (p) facts = `<b>${gib(p.bytes)} of ${gib(p.total)} GiB</b>${p.rate ? ` at ${p.rate} MB/s` : ""}<br>${facts}`;
+    if (finishing) {
+      // A ticking clock proves it is still working, without promising a time.
+      // Say what the worker is actually doing: a restore is draining the write
+      // (dd conv=fsync); a backup is reading the image back for its SHA256.
+      const after = j.action === "backup"
+        ? "reading the image back for its checksum"
+        : "flushing the write to the oven's storage";
+      facts = `<b>Finishing — ${clock(p.finishing || 0)}</b> · the write is done; it is ${after}. This can take several more minutes.`;
+    } else if (p) {
+      facts = `<b>${gib(p.bytes)} of ${gib(p.total)} GiB</b>${p.rate ? ` at ${p.rate} MB/s` : ""}<br>${facts}`;
+    }
     set("j-facts", facts);
+    const keep = $("#j-keep");
+    if (keep) {
+      const cls = finishing ? "keep alert" : "keep";
+      if (keep.className !== cls) keep.className = cls;
+      set("j-keep", finishing
+        ? `${MARK.warn}<span><b>Finishing up — keep the oven connected and powered.</b> It can sit at 100% for several more minutes; do not unplug.</span>`
+        : `${MARK.warn}<span>Keep the oven connected and powered. Don't unplug anything.</span>`);
+    }
     set("j-actions", j.cancellable ? `<button class="btn ghost" type="button" data-do="cancel">Stop waiting</button>` : "");
   }
   set("j-tracker", trackerHTML(j));
