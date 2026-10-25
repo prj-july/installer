@@ -1,3 +1,61 @@
+# June Local installer v0.8.1 release notes
+
+Released: 2026-10-25
+
+Build: `TBD` (filled in after the build)
+
+ISO: `june-local-live.iso`
+
+SHA-256: `TBD`
+
+Size: `TBD` bytes
+
+v0.8.1 is v0.8 plus two community contributions from Matt (@mvanhorn) and two
+installer screen fixes. Everything in v0.8 below still applies.
+
+## Highlights
+
+### Cook status for Home Assistant and phones
+
+The oven now serves its live cook status on its own, without the full
+`/local/status` blob:
+
+- `http://<oven-ip>/local/cook` returns JSON with the cavity and probe
+  temperature, the target and mode, the time remaining and the door state.
+- Open it in a browser (or `/local/cook.html`) for a live page.
+- A cook that has finished shows as the previous cook, not as a live one.
+
+### Restores check the backup first
+
+Restore used to check only an image's size, so a damaged backup could still be
+written back to the oven. Now:
+
+- Every restore checks the size and the `.sha256` file next to the image, and
+  refuses an image that doesn't match. A restore does a dry run first.
+- It refuses a destination that is the wrong size or is this computer's own
+  disk.
+- `latest` picks the newest backup that still verifies, so a rollback skips a
+  damaged file.
+
+Thank you, Matt, for both of these, with tests and demos included.
+
+### Installer screen fixes
+
+- Home screen: the Connect by name tile's text no longer runs into its icon.
+- Success screen: the CA certificate card's text no longer spills into the
+  next card.
+
+## Do I need to update?
+
+- If your oven runs v0.8 and works, updating is optional. Re-install to get the
+  cook status page.
+- On v0.7 or older, don't factory reset: install v0.8.1 first. If a reset
+  already left the oven "disconnected", installing v0.8.1 recovers it; then
+  pair again.
+- Back up the oven before you install anything.
+
+---
+
 # June Local installer v0.8 release notes
 
 Released: 2026-10-24

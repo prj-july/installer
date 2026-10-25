@@ -37,7 +37,7 @@ const (
 // (install.installer_version / install.build_id); the two are versioned
 // separately and must not be conflated on the status page.
 var (
-	appVersion   = "0.8"
+	appVersion   = "0.8.1"
 	appCommit    = "dev"
 	appBuild     = "dev"
 	processStart = time.Now()
