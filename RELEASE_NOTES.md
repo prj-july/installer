@@ -4,7 +4,42 @@
 > until the replacement build is published. Root cause, evidence and recovery:
 > [`docs/incidents/2026-10-25-v0.9.0-chef-apk.md`](docs/incidents/2026-10-25-v0.9.0-chef-apk.md).
 
-# June Local installer v0.9.0 release notes
+# June Local installer v0.9.1 release notes
+
+Released: 2026-10-25
+
+Build: `20261025-1411-b827be42`
+
+ISO: `june-local-live.iso`
+
+SHA-256: `5f6397e51a2d7ce006364818f0302b5e8cd833ab47019c45d0f3d0d1d25bfe94`
+
+Size: `1,416,314,880` bytes
+
+v0.9.0 is withdrawn. It baked a Chef APK whose resource table referenced 35
+files missing from the zip (a case-collision from a case-insensitive build
+host), which made Chef crash-loop at boot. Do not install v0.9.0.
+
+## Highlights
+
+- The payload bakes the verified Chef cook-modes build
+  (`8a006b806b732b6d426a396068b3a1aa039c9a3793056a3482d56a78282d6fb9`), the
+  same clean build v0.7 and v0.8.x shipped.
+- `scripts/check_apk_resources.py` now gates every payload APK on
+  resource-table integrity, so an incomplete APK can never be baked or
+  published again.
+- The signed update baseline moves to sequence `2026102501`, replacing the
+  withdrawn `2026102401` release. The corrected signed release ships the same
+  verified Chef build that is baked in this ISO.
+- Restores and backups report an honest "finishing" phase at 100% instead of
+  "0 s left".
+
+Thanks to Brooks for the precise boot-loop report that made the missing
+resources findable, and to Phunctional for the updater this release fixes.
+
+---
+
+# June Local installer v0.9.0 release notes (WITHDRAWN — see v0.9.1)
 
 Released: 2026-10-24
 
