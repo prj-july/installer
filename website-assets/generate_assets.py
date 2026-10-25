@@ -259,7 +259,7 @@ def make_usb_layout():
         ("june-local-live.iso", "≈ 1.4 GB · boot image", EMBER),
         ("ventoy/ventoy.json", "auto-select the ISO", EMBER2),
         ("june-logs/", "installer logs", BLUE),
-        ("june-certs/", "custom CA + leaf", GREEN),
+        ("june-certs/", "per-home CA + leaf", GREEN),
         ("free space", "≥ 8 GB for one ~7.3 GB oven backup", AMBER),
     ]
     y = 460
@@ -385,13 +385,13 @@ def make_installer_ui():
     out.append(f'<rect x="70" y="200" width="1460" height="30" fill="#0f1115"/>')
     out.append(f'<circle cx="120" cy="195" r="18" fill="{EMBER}"/>')
     out.append(text(152, 188, "Project July", size=24, weight="700", fill=FG))
-    out.append(text(152, 214, "June Local installer · build 20261005-0159", size=15, fill=MUTED))
+    out.append(text(152, 214, "June Local installer 0.8 · build 20261024-1602-b5ca5293", size=15, fill=MUTED))
     out.append(pill(1320, 178, "OVEN CONNECTED", fill="#243229", fg=GREEN, size=14))
     out.append(text(100, 300, "What would you like to do?", size=48, weight="300", fill=FG))
 
     tiles = [
-        ("Install June Local", "Recommended. Adds the project CA to the oven; install it on the phone too.", "RECOMMENDED", EMBER),
-        ("Install with your own CA", "Alternative. Creates a per-home certificate authority and CA file.", None, EMBER2),
+        ("Connect by IP", "No hostname or DNS needed. A per-home CA and a certificate for the oven's IP.", "RECOMMENDED", EMBER),
+        ("Connect by name", "Adds the project CA. JuneDns advertises june.local.", None, EMBER2),
         ("Back up the oven", "A full copy of the oven's storage on a USB drive. 15 to 30 minutes.", None, BLUE),
         ("Restore a backup", "Puts a backup image back on the oven.", None, GREEN),
     ]
@@ -441,21 +441,21 @@ def wizard_steps(active: int, labels=("Options", "Connect oven", "Install")):
 
 
 def make_install_options():
-    out = [title_header("Install June Local · options", "The recommended, simplest install", mockup=True)]
+    out = [title_header("Connect by name · options", "Reach the oven as june.local, june2.local or june3.local", mockup=True)]
     out.append(wizard_steps(0))
     out.append(text(130, 300, "Install June Local on this oven", size=38, weight="300", fill=FG))
-    out.append(paragraph(130, 350, "Adds the project CA to the oven's trust store, so the factory June apps accept June Local. The June app works as before, but talks to June Local instead of June's cloud. Install this CA on the phone afterwards.", width=78, size=22, lh=31))
+    out.append(paragraph(130, 350, "Adds the project CA to the oven's trust store, so the factory June apps talk to June Local instead of June's cloud. The JuneDns helper advertises the name; if multicast is blocked, add a local DNS entry or use Connect by IP. Install the same CA on the phone afterwards.", width=78, size=22, lh=31))
     out.append(rect(130, 440, 1340, 120, fill=PANEL, rx=14))
     out.append(rect(160, 475, 34, 34, fill=BG2, stroke=LINE, rx=6))
-    out.append(text(220, 500, "Keep the no-pin patch after a factory reset", size=24, fill=FG))
-    out.append(text(220, 532, "Off by default. Only needed if you plan to switch this oven to your own CA later.", size=19, fill=MUTED))
+    out.append(text(220, 500, "Keep June Local after a factory reset", size=24, fill=FG))
+    out.append(text(220, 532, "Off by default. Stores the June Local patches in /system so a factory reset keeps them.", size=19, fill=MUTED))
     out.append(pill(1360, 486, "OPTIONAL", fill="#2a2e35", fg=EMBER2, size=14))
     out.append(rect(130, 620, 330, 62, fill=EMBER, rx=12))
     out.append(text(295, 660, "Next: connect the oven", size=22, weight="700", fill="#160a04", anchor="middle"))
     out.append(rect(490, 620, 170, 62, fill=BG2, rx=12))
     out.append(text(575, 660, "Back", size=22, fill=MUTED, anchor="middle"))
-    out.append(card(130, 720, 1340, 100, "What this does", "Adds the project CA to the oven's trust store, plus the local server and camera bridge. Install the same CA on your phone.", accent=GREEN, title_size=22, pad=20))
-    out.append(footer("Default install is the everyday path; custom is for a per-home CA."))
+    out.append(card(130, 720, 1340, 100, "What this does", "Adds the project CA, the local server, the camera bridge and JuneDns. Install the same CA on your phone.", accent=GREEN, title_size=22, pad=20))
+    out.append(footer("Connect by IP is the recommended path; Connect by name is for a name instead of an IP."))
     return svg_doc("".join(out))
 
 
@@ -536,7 +536,7 @@ def make_success():
         y += 75
     out.append(rect(130, 780, 260, 58, fill=EMBER, rx=12))
     out.append(text(260, 818, "Done", size=22, weight="700", fill="#160a04", anchor="middle"))
-    out.append(footer("A basic install installs the project CA; custom uses the per-home CA on the USB."))
+    out.append(footer("Connect by name uses the project CA; Connect by IP uses the per-home CA on the USB."))
     return svg_doc("".join(out))
 
 
@@ -631,13 +631,13 @@ def make_text_mode():
 
 
 def make_basic_vs_custom():
-    out = [title_header("Basic vs custom install", "Pick the recommended path unless you need a per-home CA")]
-    out.append(card(90, 200, 680, 420, "Install June Local", "Recommended. Adds the project CA to the oven's trust store and keeps the factory app. Install the same CA on the phone; then the June app and Home Assistant pair normally.", accent=EMBER, title_size=30, pad=26))
-    out.append(card(830, 200, 680, 420, "Install with your own CA", "Alternative. Creates a private certificate authority on the USB, signs a certificate for the oven's address, and gives you a CA file to install on the phone. Use it if you want a per-home CA.", accent=EMBER2, title_size=30, pad=26))
+    out = [title_header("Connect by IP vs Connect by name", "Pick Connect by IP unless you want to reach the oven by name")]
+    out.append(card(90, 200, 680, 420, "Connect by IP", "Recommended. Creates a per-home certificate authority on the USB and a certificate that includes the oven's LAN IP. No hostname or DNS to set up. Install the CA on the phone and use the oven's IP.", accent=EMBER, title_size=30, pad=26))
+    out.append(card(830, 200, 680, 420, "Connect by name (june.local)", "Adds the project CA to the oven's trust store. The JuneDns helper advertises june.local, june2.local or june3.local; if multicast is blocked, add a local DNS entry or use Connect by IP. Install the same CA on the phone.", accent=EMBER2, title_size=30, pad=26))
     out.append(rect(90, 660, 1420, 120, fill=PANEL, rx=16))
     out.append(text(130, 710, "Persistence option", size=26, weight="700", fill=FG))
-    out.append(text(130, 750, "Off by default. Turn it on only if you want the no-pin patch to survive a factory reset; it stores the patched app in /system.", size=20, fill=MUTED))
-    out.append(footer("Most users should choose the recommended basic install."))
+    out.append(text(130, 750, "Off by default. Turn it on to keep June Local after a factory reset; it stores the patches in /system.", size=20, fill=MUTED))
+    out.append(footer("Most users should choose Connect by IP."))
     return svg_doc("".join(out))
 
 

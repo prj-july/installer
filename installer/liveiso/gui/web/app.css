@@ -115,7 +115,7 @@ p { margin: 0 0 12px; line-height: 1.45; font-size: 17px; }
 .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(12px, 2.4vw, 22px); }
 .tile {
   position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; gap: 4px;
-  min-height: 200px; padding: 18px; border-radius: 18px; text-align: left;
+  min-height: 200px; padding: 86px 18px 18px; border-radius: 18px; text-align: left;
   background: radial-gradient(120% 75% at 50% 100%, var(--tGlow), transparent 62%), linear-gradient(180deg, var(--tA), var(--tB));
   box-shadow: inset 0 0 0 1px var(--tRim), inset 0 1px 0 var(--tSheen);
   transition: transform .12s ease, box-shadow .12s ease;
@@ -255,6 +255,7 @@ details.log[open] summary svg { transform: rotate(90deg); }
 .result-list li { margin-bottom: 6px; }
 .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 22px; }
 .dl-card { display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: 14px; box-shadow: inset 0 0 0 1px var(--line); }
+.dl-card > div { min-width: 0; overflow-wrap: anywhere; }
 .qr { flex: none; width: 112px; height: 112px; padding: 8px; border-radius: 10px; background: #fff; }
 .qr svg, .qr img { width: 100%; height: 100%; }
 
@@ -310,7 +311,7 @@ details.log[open] summary svg { transform: rotate(90deg); }
   .brand-sub { display: none; }
   .chip { height: 36px; padding: 0 12px 0 8px; font-size: 12px; }
   .icon-btn-label { display: none; }
-  .tile { min-height: 156px; padding: 14px; }
+  .tile { min-height: 156px; padding: 68px 14px 14px; }
   .tile .glyph { width: 44px; height: 44px; top: 14px; left: 14px; }
   .tile .glyph.wide { width: 88px; height: 44px; }
   .tile-name { font-size: 19px; }

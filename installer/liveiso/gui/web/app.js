@@ -505,7 +505,7 @@ function infoQR(j) {
 
 function downloadsHTML(j) {
   const files = [];
-  if (S.files["ca.crt"]) files.push(["ca.crt", "June Local CA certificate", "Install it on the phone: Settings › Security › Install a certificate › CA certificate (iOS: install the profile, then enable full trust). Use the oven's IP (Connect by IP), or june.local / june2.local / june3.local (Connect by name; the JuneDns helper advertises them — add a local DNS entry if multicast is blocked). The stock June app can use api.junelife.com/messaging.junelife.com with router DNS (advanced).", "the CA certificate"]);
+  if (S.files["ca.crt"]) files.push(["ca.crt", "June Local CA certificate", "Install it on the phone: Settings › Security › Install a certificate › CA certificate (iOS: install the profile, then enable full trust). Then use the oven's IP, or june.local for Connect by name.", "the CA certificate"]);
   if (S.files["companion.apk"]) files.push(["companion.apk", "Companion app", "Install it, then set the oven's address as the endpoint.", "the companion app"]);
   if (!files.length) return "";
   if (!S.local) {
