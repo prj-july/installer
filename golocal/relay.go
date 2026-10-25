@@ -167,6 +167,7 @@ func relay(hub *Hub, peer *Peer, raw []byte) {
 				if data != nil {
 					if st, ok := data["state"].(string); ok && st == "idle" {
 						cameraEnabledFlag.Store(false)
+						hub.endCook()
 					}
 					if b, err := json.Marshal(data); err == nil {
 						hub.setDeviceState(b)
@@ -175,6 +176,11 @@ func relay(hub *Hub, peer *Peer, raw []byte) {
 				hub.setDeviceStateRaw(raw)
 			case 10013, 10014:
 				cameraEnabledFlag.Store(true)
+				if int64(code) == 10013 && data != nil {
+					if b, err := json.Marshal(data); err == nil {
+						hub.setCookingState(b)
+					}
+				}
 				var plan any
 				if data != nil {
 					if p, ok := data["cook_plan_data"]; ok {
@@ -190,6 +196,7 @@ func relay(hub *Hub, peer *Peer, raw []byte) {
 				}
 			case 10017:
 				cameraEnabledFlag.Store(false)
+				hub.endCook()
 			case 10020:
 				if data != nil {
 					order, _ := data["request_order"].(float64)

@@ -1,0 +1,25 @@
+{
+  "connection_state": "connected",
+  "device_state": {"state": "active"},
+  "cooking_state": {
+    "sensor_data": {"cavity": 175500, "weight": 0, "probe": [{"id": "left", "value": 64000}]},
+    "cook_state_data": {"step_id": 1, "cook_time_elapsed": 360000, "cook_time_remaining": 540000},
+    "eta": {"status": "acquired"}
+  },
+  "cook_plan": {
+    "food": {
+      "name": "Salmon",
+      "plan": {
+        "steps": [
+          {
+            "cook_mode": "bake",
+            "temperature_cavity": 177000,
+            "exit_criteria": [
+              {"type": "duration", "target": {"value": 900000}}
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

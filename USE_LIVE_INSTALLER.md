@@ -118,7 +118,8 @@ When it finishes, the screen says **“June Local is installed”** and shows:
 1. Unplug the oven’s power and the USB cable.
 2. Wait 10 seconds, plug the power back in and let the oven start normally.
 3. From a device on the same network, open **`http://<oven-ip>/local`**. You
-   should see the June Local status page.
+   should see the June Local status page. Cook temperature and timer are at
+   **`http://<oven-ip>/local/cook.html`** (JSON at `/local/cook`).
 4. On the phone, download the project CA from **`http://<oven-ip>/local/ca.crt`**
    and install it: **Settings › Security › Install a certificate › CA
    certificate** on Android, or install the profile and enable it under
@@ -283,7 +284,8 @@ Assets: `website-assets/png/10-troubleshooting.png`,
   installer.
 - The oven reboots normally into June’s UI.
 - Open `http://<oven-ip>/local` from any device on the network to confirm
-  June Local is running.
+  June Local is running. Cook temperature, timer and state are at
+  `http://<oven-ip>/local/cook` (JSON) and `/local/cook.html` (page).
 - Install the CA on the phone: the project CA from
   `http://<oven-ip>/local/ca.crt` for a basic install, or the per-home CA from
   the USB (or `http://<oven-ip>/local/ca.crt`) for a custom install.

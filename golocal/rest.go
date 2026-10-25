@@ -81,6 +81,10 @@ func handleREST(hub *Hub, cfg *Config, w http.ResponseWriter, r *http.Request) {
 		handleLocalStatus(hub, cfg, w, r)
 		return
 	}
+	if r.Method == "GET" && (path == "/local/cook" || path == "/local/cook.json" || path == "/local/cook.html") {
+		handleLocalCook(hub, w, r)
+		return
+	}
 	if r.Method == "GET" && path == "/local" {
 		handleLocalPage(hub, cfg, w, r)
 		return

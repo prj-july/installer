@@ -41,6 +41,7 @@ type Hub struct {
 	devices            map[string]DeviceInfo
 	lastStatus         StatusSnapshot
 	lastDeviceStateRaw []byte
+	lastCookingState   json.RawMessage
 	ovenID             string
 	framesSeen         int
 	observeOnly        bool
@@ -63,6 +64,9 @@ type StatusSnapshot struct {
 	ConnectionState string          `json:"connection_state"`
 	DeviceState     json.RawMessage `json:"device_state"`
 	CookPlan        json.RawMessage `json:"cook_plan"`
+	CookingState    json.RawMessage `json:"cooking_state,omitempty"`
+	DeviceStateAt   time.Time       `json:"-"`
+	CookEndedAt     time.Time       `json:"-"`
 }
 
 type Pairing struct {
@@ -214,6 +218,7 @@ func (h *Hub) detach(p *Peer) {
 	if h.oven == p {
 		h.oven = nil
 		h.lastStatus.ConnectionState = "disconnected"
+		h.endCookLocked()
 		// A dropped oven socket can lose the 10018 idle / 10017 end frames.
 		// Fail safe: do not let the camera bridge stay off (or a future
 		// writer think a cook is still active) after the oven goes away.
@@ -307,7 +312,54 @@ func (h *Hub) getOvenID() string {
 func (h *Hub) setDeviceState(raw json.RawMessage) {
 	h.mu.Lock()
 	h.lastStatus.DeviceState = raw
+	h.lastStatus.DeviceStateAt = time.Now()
 	h.mu.Unlock()
+}
+
+func (h *Hub) setCookingState(raw json.RawMessage) {
+	h.mu.Lock()
+	h.lastStatus.CookingState = raw
+	h.lastCookingState = raw
+	h.mu.Unlock()
+}
+
+// endCook marks the cached cook as finished (10017, 10018 idle, or the oven
+// going away) and drops its live telemetry. The plan is kept for the last-cook
+// view and for /1/messaging/device/.../status.
+func (h *Hub) endCook() {
+	h.mu.Lock()
+	h.endCookLocked()
+	h.mu.Unlock()
+}
+
+func (h *Hub) endCookLocked() {
+	h.lastStatus.CookingState = nil
+	h.lastCookingState = nil
+	if h.lastStatus.CookEndedAt.IsZero() {
+		h.lastStatus.CookEndedAt = time.Now()
+	}
+}
+
+func (h *Hub) applyFixture(connection string, device, plan, cooking json.RawMessage) {
+	h.mu.Lock()
+	if connection != "" {
+		h.lastStatus.ConnectionState = connection
+	}
+	if len(device) > 0 && string(device) != "null" {
+		h.lastStatus.DeviceState = device
+		h.lastStatus.DeviceStateAt = time.Now()
+	}
+	if len(plan) > 0 {
+		h.lastStatus.CookPlan = plan
+	}
+	if len(cooking) > 0 && string(cooking) != "null" {
+		h.lastStatus.CookingState = cooking
+		h.lastCookingState = cooking
+	}
+	h.mu.Unlock()
+	if connection == "connected" {
+		lastOvenFrameNano.Store(time.Now().UnixNano())
+	}
 }
 
 func (h *Hub) setDeviceStateRaw(raw []byte) {
@@ -319,6 +371,7 @@ func (h *Hub) setDeviceStateRaw(raw []byte) {
 func (h *Hub) setCookPlan(raw json.RawMessage) {
 	h.mu.Lock()
 	h.lastStatus.CookPlan = raw
+	h.lastStatus.CookEndedAt = time.Time{}
 	h.mu.Unlock()
 }
 

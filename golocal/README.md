@@ -47,6 +47,8 @@ Common flags:
   frame; normally the oven identifies itself.
 - `--mjpeg-fps` and `--mjpeg-viewer-gate` — MJPEG stream cadence and the
   viewer-driven camera gate (default on).
+- `--fixture FILE` — load `device_state` / `cooking_state` / `cook_plan` from JSON so `/local/cook`
+  can be tried without an oven (Home Assistant REST sensors, UI work).
 
 `june-camerad` defaults to `--source auto`, which prefers the stock
 `cameracapturerd` socket when `/system/bin/cameracapturerd` exists:
@@ -75,8 +77,39 @@ oven, which keeps toast doneness and door-open food recognition working.
 - **Expires** is sent in whole seconds because the oven's `PairingPin` uses a
   signed 32-bit integer.
 
+## Cook status
+
+`GET /local/cook` is a compact JSON snapshot for Home Assistant (current
+temperature, target, remaining timer, state). A browser that sends `Accept:
+text/html` gets a live page instead; `/local/cook.json` and `/local/cook.html`
+are the explicit URLs.
+
+```yaml
+# Home Assistant configuration.yaml
+rest:
+  - resource: http://OVEN_IP/local/cook
+    scan_interval: 5
+    sensor:
+      - name: June oven temperature
+        value_template: "{{ value_json.current_c }}"
+        unit_of_measurement: "°C"
+      - name: June oven state
+        value_template: "{{ value_json.state }}"
+      - name: June oven timer
+        value_template: "{{ value_json.remaining_seconds }}"
+        unit_of_measurement: "s"
+```
+
+Without an oven:
+
+```sh
+june-local --cert cert.pem --key key.pem --http-port 18080 --port 18443 \
+  --bind 127.0.0.1 --append --fixture testdata/cook-baking.json
+curl -s http://127.0.0.1:18080/local/cook
+```
+
 ## Tests
 
 `go test ./...` covers the WebSocket relay, the stock-cameracapturerd protocol,
-the camera bridge gate, multipart cook-frame uploads, and the MJPEG viewer
-gate. It does not require a physical oven.
+the camera bridge gate, multipart cook-frame uploads, the MJPEG viewer
+gate, and the cook-status JSON/page. It does not require a physical oven.
