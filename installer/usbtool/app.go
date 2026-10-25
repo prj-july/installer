@@ -81,7 +81,8 @@ func (a *App) beforeClose(ctx context.Context) bool {
 
 func (a *App) Info() Info {
 	debugf("Info called by the UI")
-	return Info{Version: stick.ToolVersion, OS: runtime.GOOS, GuideURL: guideURL, ARM: stick.HostIsARM()}
+	// Releases set ToolVersion to the tag, e.g. "usb-v1.2"; show "1.2".
+	return Info{Version: strings.TrimPrefix(stick.ToolVersion, "usb-v"), OS: runtime.GOOS, GuideURL: guideURL, ARM: stick.HostIsARM()}
 }
 
 // Release fetches the current release manifest.
