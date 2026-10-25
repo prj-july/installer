@@ -1,9 +1,6 @@
 # June Local installer mockups
 
-Rendered from the real installer UI (version 0.7, build 20261011-1353-1d65c317).
-Historical: these PNGs are from the 0.7 UI; re-render with
-`JUNE_VERSION=0.8 JUNE_BUILD_ID=20261024-1602-b5ca5293 .venv/bin/python capture.py`
-before the 0.8 site uses them.
+Rendered from the real installer UI (version 0.8, build 20261024-1602-b5ca5293).
 
 | File | Stage | What it shows |
 | --- | --- | --- |
