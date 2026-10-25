@@ -23,7 +23,7 @@ VERSION="${VERSION#v}"
 # scripts do not change.  Missing files are skipped here (the JuneDns APK and the
 # identity template are optional on dev builds; release builds fail earlier if
 # the template is missing).
-IDENTITY_ASSETS="assets/june-local-linux-armv7 assets/june-camerad-linux-armv7 assets/Chef_cookmodes_signed.apk assets/generate_identity.py assets/accounts_template.db assets/JuneDns_signed.apk"
+IDENTITY_ASSETS="assets/june-local-linux-armv7 assets/june-camerad-linux-armv7 assets/june-wireless-update assets/Chef_cookmodes_signed.apk assets/updater.json assets/generate_identity.py assets/accounts_template.db assets/JuneDns_signed.apk"
 BUILD_ID="$(date +%Y%m%d-%H%M)-$( (cat build.sh prepare_assets.sh gui/server.py gui/web/*.html gui/web/*.css gui/web/*.js boot-theme/* 2>/dev/null || true; printf '%s' "$VERSION"; sha256sum $IDENTITY_ASSETS 2>/dev/null || true) | sha256sum | cut -c1-8)"
 if [ -d assets ]; then
   printf '%s\n' "$BUILD_ID" > assets/BUILD_ID

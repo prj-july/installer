@@ -37,6 +37,13 @@ details[open] summary:after{content:"▴"}
 footer{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:26px;color:var(--dim);font-size:13px}
 footer a{color:var(--accent);text-decoration:none}
 button{background:#13202f;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer}
+button.primary{background:#0b4a67;border-color:#16779e}
+button:disabled{cursor:not-allowed;opacity:.48}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.field{display:block;margin:10px 0}.field span{display:block;color:var(--text);font-weight:600;margin-bottom:5px}
+.field input{width:100%;background:#090d13;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:13px ui-monospace,SFMono-Regular,Menlo,monospace}
+.notice{border:1px solid #24506a;background:#0b1b26;color:var(--text);border-radius:8px;padding:10px 12px;margin:10px 0}
+.notice.bad{border-color:#6b2227;background:#1c0f10}
 noscript{display:block;background:#1a1608;border:1px solid #4a3b12;padding:12px;border-radius:10px}
 </style>
 </head>
@@ -72,8 +79,80 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;
 const secs = s => s < 0 ? 'never' : (s < 60 ? s + ' s ago' : (s < 3600 ? Math.round(s/60) + ' min ago' : Math.round(s/3600) + ' h ago'));
 const bytes = n => n > 1e9 ? (n/1e9).toFixed(1)+' GB' : (n > 1e6 ? (n/1e6).toFixed(1)+' MB' : (n > 1e3 ? (n/1e3).toFixed(0)+' KB' : (n||0)+' B'));
 let data = initial;
+const UPDATE_TOKEN_KEY = 'june-local-update-token';
+let updateToken = '';
+try { updateToken = sessionStorage.getItem(UPDATE_TOKEN_KEY) || ''; } catch (e) {}
 
 function tile(k, v, s, cls) { return `<div class="tile"><div class="k">${esc(k)}</div><div class="v ${cls||''}">${esc(v)}</div><div class="s">${esc(s)}</div></div>`; }
+function updateLabel(u) {
+  const labels = {
+    'ready': 'Ready', 'checking': 'Checking', 'up-to-date': 'Up to date',
+    'update-available': 'Update available', 'staged': 'Reboot to apply',
+    'error': 'Update error', 'disabled': 'Updates unavailable'
+  };
+  return labels[u.state] || 'Unknown';
+}
+function updatesTone(u) {
+  if (u.state === 'error') return 'red';
+  if (u.state === 'update-available' || u.state === 'staged' || u.state === 'checking') return 'amber';
+  return u.enabled ? 'ok' : 'amber';
+}
+function updateSummary(u) {
+  if (u.pending && u.pending.release) return u.pending.release + ' staged';
+  if (u.available && u.available.release) return u.available.release + ' available';
+  if (u.current_release) return u.current_release + ' installed';
+  if (u.enabled) return 'signed HTTPS repository';
+  return u.last_error || 'install the updater config';
+}
+function syncUpdateToken() {
+  const input = $('update-token');
+  if (input && updateToken) input.value = updateToken;
+}
+function setUpdateMessage(text, bad) {
+  const el = $('update-msg');
+  if (!el) return;
+  el.hidden = !text;
+  el.className = 'notice' + (bad ? ' bad' : '');
+  el.textContent = text || '';
+}
+async function runUpdateAction(action) {
+  if (location.protocol !== 'https:') {
+    setUpdateMessage('Open this page over HTTPS before sending an update token.', true);
+    return;
+  }
+  const input = $('update-token');
+  const token = (input && input.value.trim()) || updateToken;
+  if (!token) {
+    setUpdateMessage('Enter the update control token printed by the installer.', true);
+    if (input) input.focus();
+    return;
+  }
+  if (action === 'stage' && !window.confirm('Stage this signed update for the next oven boot?')) return;
+  updateToken = token;
+  try { sessionStorage.setItem(UPDATE_TOKEN_KEY, token); } catch (e) {}
+  document.querySelectorAll('[data-update]').forEach(b => { b.disabled = true; });
+  setUpdateMessage(action === 'check' ? 'Checking the signed repository…' : 'Downloading and verifying the update…', false);
+  try {
+    const res = await fetch('/local/update/' + action, {
+      method: 'POST', cache: 'no-store',
+      headers: { 'X-June-Update-Token': token }
+    });
+    const reply = await res.json().catch(() => ({}));
+    if (reply.update) data.update = reply.update;
+    render(data);
+    if (!res.ok) throw new Error(reply.error || ('HTTP ' + res.status));
+    if (action === 'stage') {
+      setUpdateMessage('Update verified and staged. Power-cycle the oven when convenient to apply it.', false);
+    } else if (reply.update && reply.update.available) {
+      setUpdateMessage('A signed update is available. Stage it when you are ready.', false);
+    } else {
+      setUpdateMessage('This oven is up to date on its selected channel.', false);
+    }
+  } catch (err) {
+    render(data);
+    setUpdateMessage((err && err.message) || 'Update request failed.', true);
+  }
+}
 function cookSub(c) {
   c = c || {};
   const bits = [];
@@ -92,6 +171,8 @@ function details(id, title, body, open) { return `<details id="${id}" ${open?'op
 function render(d) {
   const worst = (d.problems || []).find(p => p.severity === 'red') || (d.problems || []).find(p => p.severity === 'amber');
   const ident = (d.oven && d.oven.identity) || {};
+  const upd = d.update || {};
+  const secureUpdate = location.protocol === 'https:';
   const sev = worst ? worst.severity : 'ok';
   $('dot').className = 'dot ' + (sev === 'ok' ? '' : sev);
   $('headline').textContent = worst ? worst.title : 'All good';
@@ -103,6 +184,7 @@ function render(d) {
       ident.account_present ? 'ok' : 'red') +
     tile('Cooking', d.cook.state === 'idle' ? 'No cook running' : (d.cook.mode || 'Cooking'), cookSub(d.cook), d.cook.state === 'idle' ? '' : 'ok') +
     tile('Camera', d.camera.camerad_running ? 'Running' : 'Down', `last frame ${secs(d.camera.last_frame_age_seconds)}`, d.camera.last_frame_age_seconds > 20 ? 'amber' : 'ok') +
+    tile('Updates', updateLabel(upd), updateSummary(upd), updatesTone(upd)) +
     tile('Installer', (d.install && d.install.installer_version) || 'unknown', (d.install && d.install.build_id) || '') +
     tile('Server', d.version.version, `${d.version.commit} · ${d.version.build_date}`);
 
@@ -143,6 +225,26 @@ function render(d) {
     row('Persistence', d.install.persistence || '') +
     row('CA issuer', `${d.cert.issuer || 'unknown'} · recorded: ${d.install.ca_mode || 'unknown'}`) +
     row('Hostname', d.install.hostname || '') + row('Install IP', d.install.install_ip || '') + row('Presets', `${d.presets.catalog_entries} entries · ${bytes(d.presets.upstream_bytes)}`);
+  const avail = upd.available || {};
+  const pending = upd.pending || {};
+  const updateState = row('State', updateLabel(upd), updatesTone(upd)) +
+    row('Channel', upd.channel || 'not configured') +
+    row('Installed release', upd.current_release || 'installer baseline') +
+    row('Last checked', upd.last_checked_at || 'never') +
+    (pending.release ? row('Staged release', `${pending.release} · reboot required`, 'amber') : '') +
+    (pending.artifact_sha256 ? row('Staged SHA-256', pending.artifact_sha256.slice(0,16)) : '') +
+    (avail.release ? row('Available release', `${avail.release} · ${bytes(avail.artifact_size)}`, 'amber') : '') +
+    (avail.artifact_sha256 ? row('Artifact SHA-256', avail.artifact_sha256.slice(0,16)) : '') +
+    (avail.notes ? `<div class="notice"><b>${esc(avail.release)}</b><br>${esc(avail.notes)}</div>` : '') +
+    (upd.last_error ? `<div class="notice bad"><b>Update error</b><br>${esc(upd.last_error)}</div>` : '') +
+    (pending.release ? `<div class="notice"><b>Ready for the next boot.</b> Power-cycle the oven normally. The boot applier backs up the live Chef APK, verifies the staged copy, and retains the previous APK for rollback.</div>` : '') +
+    (!secureUpdate ? `<div class="notice bad"><b>HTTPS is required for update controls.</b> The control token must not cross the LAN in plaintext. <a href="https://${esc(location.hostname)}/local">Open the secure status page</a>.</div>` : '') +
+    `<p>Updates are pulled over HTTPS from the signed repository. The oven verifies the Ed25519 manifest and the APK SHA-256 before staging anything.</p>` +
+    `<label class="field"><span>Update control token</span><input id="update-token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Printed by the installer"></label>` +
+    `<div class="actions"><button type="button" data-update="check" ${upd.enabled && secureUpdate ? '' : 'disabled'}>Check for update</button>` +
+    `<button class="primary" type="button" data-update="stage" ${upd.enabled && secureUpdate && avail.release && !pending.release ? '' : 'disabled'}>Stage for next boot</button></div>` +
+    `<div id="update-msg" class="notice" hidden></div>` +
+    `<p class="mono">Installer log / USB: /june-logs/update-token.txt<br>Oven file: /data/june/updates/control-token</p>`;
   const cam = row('june-camerad', d.camera.camerad_running ? 'running' : 'stopped', d.camera.camerad_running ? 'ok' : 'red') +
     row('Stock socket', d.camera.stock_socket ? 'present' : 'missing', d.camera.stock_socket ? 'ok' : 'amber') + row('Viewer gate', d.camera.viewer_gate ? 'open' : 'closed') +
     row('Last frame', secs(d.camera.last_frame_age_seconds)) + row('Light helper', d.light.helper_installed ? 'installed' : 'missing', d.light.helper_installed ? 'ok' : 'amber') +
@@ -163,6 +265,7 @@ function render(d) {
     details('sec-identity','Local identity',identity) +
     details('sec-clients','Clients & pairing',clients) +
     details('sec-camera','Camera & light',cam) +
+    details('sec-update','Software updates',updateState) +
     details('sec-cert','Certificate',cert) +
     details('sec-network','Network',net) +
     details('sec-storage','Storage',storage) +
@@ -170,7 +273,9 @@ function render(d) {
     details('sec-errors','Recent errors',(d.errors||[]).map(e=>row(e.time, `${e.source}: ${e.message}`)).join('') || '<p>None.</p>');
 
   const open = {}; (d.problems||[]).forEach(p => { const m = { 'oven-disconnected':'sec-network','identity-missing':'sec-identity','cert-untrusted':'sec-cert','factory-fallback':'sec-install','camera-bridge':'sec-camera','light-bridge':'sec-camera','cert-expiry':'sec-cert','cert-ip-mismatch':'sec-cert','storage-low':'sec-storage' }; if (m[p.id]) open[m[p.id]] = 1; });
+  if (upd.state === 'update-available' || upd.state === 'staged' || upd.state === 'error') open['sec-update'] = 1;
   Object.keys(open).forEach(id => { const el = $(id); if (el) el.open = true; });
+  syncUpdateToken();
 }
 
 function refresh() { fetch('/local/status', {cache:'no-store'}).then(r=>r.json()).then(j=>{data=j;render(j);}).catch(()=>{}); }
@@ -202,6 +307,10 @@ $('copy').addEventListener('click', () => {
     $('copy').textContent = 'Copy failed — use Download diagnostics';
     setTimeout(() => { $('copy').textContent = 'Copy diagnostics'; }, 3500);
   });
+});
+$('sections').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-update]');
+  if (button) runUpdateAction(button.getAttribute('data-update'));
 });
 render(initial);
 setInterval(()=>{ if(!document.hidden) refresh(); }, 7000);

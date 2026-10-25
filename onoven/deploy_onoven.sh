@@ -131,6 +131,7 @@ LIGHT_SRC="${LIGHT_SRC:-$SRC_DIR/OvenLight_signed.apk}"
 DNS_SRC="${DNS_SRC:-$SRC_DIR/JuneDns_signed.apk}"
 BOOTCLEAR_SRC="${BOOTCLEAR_SRC:-$SRC_DIR/june_bootclear.sh.onoven}"
 JUNE_REAPER_SRC="${JUNE_REAPER_SRC:-$SRC_DIR/june_reaper.sh.junelocal}"
+UPDATER_CONFIG_SRC="${UPDATER_CONFIG_SRC:-$SRC_DIR/updater.json}"
 COMPANION_STATE_SRC="${COMPANION_STATE_SRC:-$ROOT/local-resources/june-arch/companions_state.json}"
 BOOT_SRC="${BOOT_SRC:-$ROOT/local-resources/june-arch/tools/orchestrator/boot_junelocal_init.img}"
 FLASH_BOOT="${FLASH_BOOT:-1}"
@@ -198,6 +199,12 @@ require_block_device
 echo "[*] target disk: $DEV"
 echo "[*] excluded boot/system disk: ${BOOT_OR_ROOT_DISK:-none}"
 
+if [ ! -s "$UPDATER_CONFIG_SRC" ]; then
+  echo "[-] updater configuration is missing: $UPDATER_CONFIG_SRC" >&2
+  echo "    Refusing to install a server that cannot verify signed updates." >&2
+  exit 1
+fi
+
 install_system_files() {
   local mnt="$1"
   install -m 0755 "$BIN_SRC" "$mnt/xbin/june-local"
@@ -228,6 +235,9 @@ install_system_files() {
   # read-write when a staged JCM patch exists and applies it before Android
   # starts; without a staged patch it behaves exactly like the stock script.
   install -m 0755 "$JUNE_REAPER_SRC" "$mnt/bin/june_reaper.sh"
+  mkdir -p "$mnt/etc/june"
+  install -m 0644 "$UPDATER_CONFIG_SRC" "$mnt/etc/june/updater.json"
+  echo "[+] signed update repository config installed on $mnt/etc/june/updater.json"
 
   # Record the chosen hostname. The optional JuneDns helper app advertises
   # <name>.local over mDNS (it reads this file); the status page shows the name
@@ -794,8 +804,58 @@ if ! mount -t ext4 -o rw "$LOOP_UDA" "$UDA_MNT"; then
   mount -t ext4 -o rw "$LOOP_UDA" "$UDA_MNT"
 fi
 
-mkdir -p "$UDA_MNT/june/media" "$UDA_MNT/june/logs"
-chmod 0755 "$UDA_MNT/june" "$UDA_MNT/june/media" "$UDA_MNT/june/logs"
+mkdir -p "$UDA_MNT/june/media" "$UDA_MNT/june/logs" "$UDA_MNT/june/updates/transactions"
+chmod 0755 "$UDA_MNT/june" "$UDA_MNT/june/media" "$UDA_MNT/june/logs" \
+  "$UDA_MNT/june/updates" "$UDA_MNT/june/updates/transactions"
+
+# This per-install secret authorizes check/stage actions on the local status
+# page. It is separate from the release signing key: compromising one oven's
+# token cannot sign a malicious update for anybody.
+update_token_file="$UDA_MNT/june/updates/control-token"
+update_token=""
+if [ -s "$update_token_file" ]; then
+  update_token="$(cat "$update_token_file" 2>/dev/null || true)"
+fi
+if [[ "$update_token" =~ ^[0-9a-f]{64}$ ]]; then
+  chmod 0600 "$update_token_file"
+  echo "[+] preserving existing wireless update control token"
+else
+  if command -v openssl >/dev/null 2>&1; then
+    update_token="$(openssl rand -hex 32)"
+  else
+    update_token="$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | od -An -tx1 | tr -d ' \n')"
+  fi
+  if ! [[ "$update_token" =~ ^[0-9a-f]{64}$ ]]; then
+    echo "[-] could not generate a wireless update control token" >&2
+    exit 1
+  fi
+  printf '%s\n' "$update_token" > "$update_token_file"
+  chmod 0600 "$update_token_file"
+  echo "[+] wireless update control token: $update_token"
+  echo "    Enter this token in /local → Software updates. Store it with the oven records."
+fi
+
+# Make the token easy to use from the installer and the wireless updater
+# client without reading /data over ADB. It stays out of system images and is
+# never included in the public release signing material.
+update_token_value="$(cat "$update_token_file" 2>/dev/null)"
+if [ -n "$update_token_value" ]; then
+  if mkdir -p /run/june-installer && \
+     install -m 0600 "$update_token_file" /run/june-installer/update-token; then
+    echo "[+] wireless update token exported for the installer UI"
+  else
+    echo "[!] could not export update token to /run; installation will continue" >&2
+  fi
+  if [ -d /media/ventoy ]; then
+    if mkdir -p /media/ventoy/june-logs && \
+       install -m 0600 "$update_token_file" /media/ventoy/june-logs/update-token.txt; then
+      echo "[+] wireless update token saved to the boot USB: /june-logs/update-token.txt"
+    else
+      echo "[!] could not save update token to the boot USB; installation will continue" >&2
+    fi
+  fi
+fi
+
 # Preserve an existing companion registry: a normal reinstall must never force
 # clients to re-pair. The payload file only seeds a fresh /data.
 if [ -s "$UDA_MNT/june/companions_state.json" ]; then

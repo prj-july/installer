@@ -24,10 +24,13 @@ Requires Go 1.22 or newer. Override `GO` if your toolchain is not on `PATH`:
 make oven                    # bin/june-local-linux-armv7   (oven, Android 5)
 make camerad                 # bin/june-camerad-linux-armv7 (oven)
 make docker                  # bin/june-local-linux-amd64   (Docker/NAS)
+make tools                   # update publisher + wireless update client
 make test
 ```
 
 The ARM binaries are static (`CGO_ENABLED=0`) and run on the oven's Tegra K1.
+The signed wireless update flow is documented in
+[`../WIRELESS_UPDATES.md`](../WIRELESS_UPDATES.md).
 
 ## Run
 

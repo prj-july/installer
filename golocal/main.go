@@ -17,34 +17,39 @@ import (
 )
 
 type Config struct {
-	Cert            string
-	Key             string
-	CA              string
-	Port            int
-	HTTPPort        int
-	Bind            string
-	Timeout         int
-	ObserveOnly     bool
-	OvenPath        string
-	OvenPubkey      string
-	OvenID          string
-	Identity        string // companion identity.json from june_capture.py (--identity)
-	IdentityFile    string // local oven identity record, minted/loaded here (--identity-file)
-	SeedTokenFile   string // installer-seeded v2 token, survives a factory reset (--seed-token)
-	AccountsDB      string // Android account database, probed read-only (--accounts-db)
-	MintIdentity    bool   // create identity.json with a fresh token when absent (--mint-identity)
-	SeedAccounts    bool   // refused at runtime; the pre-Android boot ensure owns accounts.db
-	LogPath         string
-	JsonlPath       string
-	Tag             string
-	Append          bool
-	ContentRoot     string
-	CompanionState  string
-	MediaDir        string
-	MediaURL        string
-	MJPEGFps        int
-	MJPEGViewerGate bool
-	Fixture         string
+	Cert                 string
+	Key                  string
+	CA                   string
+	Port                 int
+	HTTPPort             int
+	Bind                 string
+	Timeout              int
+	ObserveOnly          bool
+	OvenPath             string
+	OvenPubkey           string
+	OvenID               string
+	Identity             string // companion identity.json from june_capture.py (--identity)
+	IdentityFile         string // local oven identity record, minted/loaded here (--identity-file)
+	SeedTokenFile        string // installer-seeded v2 token, survives a factory reset (--seed-token)
+	AccountsDB           string // Android account database, probed read-only (--accounts-db)
+	MintIdentity         bool   // create identity.json with a fresh token when absent (--mint-identity)
+	SeedAccounts         bool   // refused at runtime; the pre-Android boot ensure owns accounts.db
+	LogPath              string
+	JsonlPath            string
+	Tag                  string
+	Append               bool
+	ContentRoot          string
+	CompanionState       string
+	MediaDir             string
+	MediaURL             string
+	MJPEGFps             int
+	MJPEGViewerGate      bool
+	Fixture              string
+	UpdaterConfig        string
+	UpdatesDir           string
+	UpdateTokenFile      string
+	UpdatePersistentFile string
+	Updater              *Updater
 }
 
 var (
@@ -137,6 +142,7 @@ func main() {
 	// this only observes it; the status page turns a missing row into a red
 	// "identity-missing" problem.
 	initOvenIdentity(cfg)
+	cfg.Updater = createUpdater(cfg)
 
 	if _, err := os.Stat(cfg.Cert); err != nil {
 		log.Fatalf("missing cert: %s", cfg.Cert)
@@ -257,6 +263,10 @@ func parseFlags() *Config {
 	flag.IntVar(&cfg.MJPEGFps, "mjpeg-fps", 10, "MJPEG stream frame rate")
 	flag.BoolVar(&cfg.MJPEGViewerGate, "mjpeg-viewer-gate", true, "open the camera gate while an MJPEG client is watching")
 	flag.StringVar(&cfg.Fixture, "fixture", "", "JSON file with device_state/cook_plan for local testing (no oven)")
+	flag.StringVar(&cfg.UpdaterConfig, "updater-config", "/system/etc/june/updater.json", "signed update repository configuration")
+	flag.StringVar(&cfg.UpdatesDir, "updates-dir", "/data/june/updates", "atomic update staging directory")
+	flag.StringVar(&cfg.UpdateTokenFile, "update-token-file", "/data/june/updates/control-token", "per-install wireless update control token")
+	flag.StringVar(&cfg.UpdatePersistentFile, "update-persistent-record", "/system/etc/june/chef_update.json", "release metadata retained beside the persistent Chef APK")
 	flag.Parse()
 	return cfg
 }
@@ -354,7 +364,13 @@ func classify(path string, ovenPath string) string {
 func headerMap(h http.Header) map[string]any {
 	m := map[string]any{}
 	for k, v := range h {
-		m[strings.ToLower(k)] = strings.Join(v, ", ")
+		key := strings.ToLower(k)
+		switch key {
+		case "authorization", "proxy-authorization", "x-june-update-token", "cookie", "set-cookie":
+			m[key] = "<redacted>"
+		default:
+			m[key] = strings.Join(v, ", ")
+		}
 	}
 	return m
 }

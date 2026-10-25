@@ -36,6 +36,19 @@ func handleREST(hub *Hub, cfg *Config, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Update controls have no request body. Route them before the generic body
+	// read so an unauthenticated LAN client cannot force a multi-gigabyte
+	// allocation before the HTTPS and token checks run.
+	if path == "/local/update" || path == "/local/update/check" || path == "/local/update/stage" {
+		logLine("[rest] %s %s ua=%s", r.Method, path, r.UserAgent())
+		writeJSONL(map[string]any{
+			"dir": "rest", "method": r.Method, "path": path,
+			"headers": headerMap(r.Header), "body": "<not read for update control>",
+		})
+		cfg.Updater.handleLocalUpdate(w, r)
+		return
+	}
+
 	bodyBytes, _ := io.ReadAll(r.Body)
 	body := string(bodyBytes)
 	mediaUpload := r.Method == "POST" &&

@@ -32,9 +32,11 @@ JUNE_LR=/path/to/local-resources JUNE_ROOT=/path/to/June ./prepare_assets.sh
 | Input | Default source | Publish |
 |-------|----------------|---------|
 | `deploy_onoven.sh`, `june_bootclear.sh.onoven`, `june_reaper.sh.junelocal` | `onoven/` | yes |
+| `updater.json` (release public key/config) | `onoven/` | yes |
 | `generate_certs.sh`, `sign_leaf.sh` | `packaging/` | yes |
 | `install.sh`, `backup.sh` | embedded in `prepare_assets.sh` | yes |
 | `june-local`, `june-camerad` armv7 binaries | `golocal/bin/` | prefer publishing `golocal/` source |
+| `june-wireless-update` live-ISO client | `golocal/bin/` | yes; built from `cmd/june-wireless-update` |
 | `companions_state.json` | repo root (supplied blob) | yes |
 | `boot_junelocal_init.img` | `tools/orchestrator/` | no; publish `build_boot_junelocal_init.py` + `jcm_apply.sh` and build it |
 | `JuneCloudMessaging.apk` | `june-rcm/healthy-build/…` | **no** (June proprietary) |
@@ -57,10 +59,10 @@ for licensing reasons and document that users must supply their own content.
 ```
 june-installer/
   liveiso/        # this folder
-  onoven/         # deploy_onoven.sh, june_bootclear.sh.onoven, june_reaper.sh.junelocal
+  onoven/         # deploy/boot scripts and updater.json public trust config
   packaging/      # generate_certs.sh, sign_leaf.sh
   bootimage/      # build_boot_junelocal_init.py, jcm_apply.sh
-  golocal/        # june-local / june-camerad sources
+  golocal/        # june-local / june-camerad and wireless updater sources
   blobs/          # NOT committed: June APKs, certs/key, firmware blobs (fetched or supplied locally)
 ```
 

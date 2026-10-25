@@ -251,6 +251,7 @@ type StatusData struct {
 	Cert        CertStatus    `json:"cert"`
 	Storage     StorageStatus `json:"storage"`
 	Presets     PresetsStatus `json:"presets"`
+	Update      UpdateStatus  `json:"update"`
 	Clock       ClockStatus   `json:"clock"`
 	Errors      []ErrorEntry  `json:"errors"`
 	Problems    []Problem     `json:"problems"`
@@ -409,6 +410,7 @@ func refreshStatus(hub *Hub, cfg *Config) {
 	d.Cert = certStatus(cfg, d.Network)
 	d.Storage = storageStatus(cfg)
 	d.Presets = presetsStatus(cfg)
+	d.Update = cfg.Updater.Status()
 	d.Clients = clientsFromHub(hub)
 	d.Errors = statusErrorsSnapshot()
 	d.Problems = buildProblems(d)

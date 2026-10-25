@@ -26,7 +26,10 @@ chmod +x \
   "config/includes.chroot$PAYLOAD/june-backup" \
   "config/includes.chroot$PAYLOAD/generate_identity.py" \
   "config/includes.chroot$PAYLOAD/june-local-linux-armv7" \
-  "config/includes.chroot$PAYLOAD/june-camerad-linux-armv7"
+  "config/includes.chroot$PAYLOAD/june-camerad-linux-armv7" \
+  "config/includes.chroot$PAYLOAD/june-wireless-update"
+mkdir -p config/includes.chroot/usr/local/bin
+ln -sf "$PAYLOAD/june-wireless-update" config/includes.chroot/usr/local/bin/june-wireless-update
 
 # Graphical installer: Python backend + web UI (see gui/).  The dev/ mock
 # tooling stays out of the image.

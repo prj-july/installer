@@ -13,7 +13,7 @@ COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS = -s -w -X main.appVersion=$(VERSION) -X main.appCommit=$(COMMIT) -X main.appBuild=$(BUILD_DATE)
 
-.PHONY: oven camerad docker test clean
+.PHONY: oven camerad docker tools client-windows client-linux test clean
 
 oven:
 	mkdir -p bin
@@ -26,6 +26,19 @@ camerad:
 docker:
 	mkdir -p bin
 	GOOS=linux GOARCH=amd64 $(GOENV) $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o bin/june-local-linux-amd64 .
+
+tools:
+	mkdir -p bin
+	$(GO) build -trimpath -ldflags "-s -w" -o bin/june-update-publisher ./cmd/june-update-publisher
+	$(GO) build -trimpath -ldflags "-s -w" -o bin/june-wireless-update ./cmd/june-wireless-update
+
+client-windows:
+	mkdir -p bin
+	GOOS=windows GOARCH=amd64 $(GOENV) $(GO) build -trimpath -ldflags "-s -w" -o bin/june-wireless-update-windows-amd64.exe ./cmd/june-wireless-update
+
+client-linux:
+	mkdir -p bin
+	GOOS=linux GOARCH=amd64 $(GOENV) $(GO) build -trimpath -ldflags "-s -w" -o bin/june-wireless-update-linux-amd64 ./cmd/june-wireless-update
 
 test:
 	$(GO) test ./...

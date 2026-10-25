@@ -40,6 +40,7 @@ printf '%s\n' "${JUNE_VERSION:-0.8}" > "$DEST/VERSION"
 cp "$ONOVEN_SRC/deploy_onoven.sh" "$DEST/"
 cp "$ONOVEN_SRC/june_bootclear.sh.onoven" "$DEST/"
 cp "$ONOVEN_SRC/june_reaper.sh.junelocal" "$DEST/"
+cp "$ONOVEN_SRC/updater.json" "$DEST/"
 # Guard against a stale onoven source tree.  A JUNE_LR pointing at the
 # local-resources/june-arch dev tree picks up its old copies of these scripts,
 # which silently ships an installer without the June identity code (no
@@ -57,6 +58,12 @@ fi
 cp "$ARCH/companions_state.json" "$DEST/"
 cp "$ARCH/golocal/bin/june-local-linux-armv7" "$DEST/"
 cp "$ARCH/golocal/bin/june-camerad-linux-armv7" "$DEST/"
+if [ ! -f "$ARCH/golocal/bin/june-wireless-update-linux-amd64" ]; then
+  echo "[-] missing $ARCH/golocal/bin/june-wireless-update-linux-amd64" >&2
+  echo "[-] run 'make client-linux' in $ARCH/golocal before preparing installer assets." >&2
+  exit 1
+fi
+cp "$ARCH/golocal/bin/june-wireless-update-linux-amd64" "$DEST/june-wireless-update"
 cp "$ROOT/tools/certs/junelife_chain_godaddy_intermediate.crt" "$DEST/"
 cp "$ROOT/tools/certs/june-local.key" "$DEST/"
 # The project CA alone (not the chain): the basic install adds it to the oven's

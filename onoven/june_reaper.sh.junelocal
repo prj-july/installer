@@ -227,9 +227,44 @@ fi
 
 # --- June Local: pick the staged Chef (cook modes) patch, if any ------------
 CHEF_STAGE=""
-if [ -f /system/etc/june/chef_cookmodes.apk ]; then
+UPDATE_READY=/data/june/updates/ready
+UPDATE_TXN=""
+UPDATE_TXN_DIR=""
+UPDATE_CHEF_STAGE=""
+UPDATE_PENDING=""
+UPDATE_HASH=""
+if [ -f "$UPDATE_READY" ]; then
+   UPDATE_TXN="$(cat "$UPDATE_READY" 2>/dev/null)"
+   case "$UPDATE_TXN" in
+      txn-*) [ "${#UPDATE_TXN}" -eq 36 ] || UPDATE_TXN="" ;;
+      *) UPDATE_TXN="" ;;
+   esac
+   if [ -n "$UPDATE_TXN" ]; then
+      UPDATE_TXN_HEX="${UPDATE_TXN#txn-}"
+      case "$UPDATE_TXN_HEX" in *[!0-9a-f]*|"") UPDATE_TXN="" ;; esac
+   fi
+   if [ -n "$UPDATE_TXN" ]; then
+      UPDATE_TXN_DIR="/data/june/updates/transactions/$UPDATE_TXN"
+      UPDATE_CHEF_STAGE="$UPDATE_TXN_DIR/chef_cookmodes.apk"
+      UPDATE_PENDING="$UPDATE_TXN_DIR/pending.json"
+      UPDATE_HASH="$UPDATE_TXN_DIR/pending.sha256"
+      UPDATE_EXPECTED_SHA="$(/system/bin/busybox awk 'NR==1 {print $1}' "$UPDATE_HASH" 2>/dev/null)"
+      UPDATE_ACTUAL_SHA="$(/system/bin/busybox sha256sum "$UPDATE_CHEF_STAGE" 2>/dev/null | /system/bin/busybox awk '{print $1}')"
+      if [ -f "$UPDATE_PENDING" ] && [ -n "$UPDATE_EXPECTED_SHA" ] && \
+         [ -n "$UPDATE_ACTUAL_SHA" ] && [ "$UPDATE_EXPECTED_SHA" = "$UPDATE_ACTUAL_SHA" ]; then
+         CHEF_STAGE="$UPDATE_CHEF_STAGE"
+      else
+         UPDATE_CHEF_STAGE=""
+         logi "june-local: committed wireless update is incomplete or failed sha256 verification"
+      fi
+   else
+      logi "june-local: update commit marker is invalid; refusing wireless Chef staging"
+   fi
+fi
+
+if [ -z "$CHEF_STAGE" ] && [ ! -f "$UPDATE_READY" ] && [ -f /system/etc/june/chef_cookmodes.apk ]; then
    CHEF_STAGE=/system/etc/june/chef_cookmodes.apk
-elif [ -f /data/june/chef_cookmodes.apk ]; then
+elif [ -z "$CHEF_STAGE" ] && [ ! -f "$UPDATE_READY" ] && [ -f /data/june/chef_cookmodes.apk ]; then
    CHEF_STAGE=/data/june/chef_cookmodes.apk
 fi
 
@@ -297,29 +332,68 @@ apply_staged_apk() {
    live="$2"
    label="$3"
    log="/data/june/logs/${label}_patch.log"
+   APPLY_RESULT=""
    /system/bin/busybox mkdir -p /data/june/logs
    if [ ! -f "$live" ]; then
       logi "june-local: $live not found; leaving collector read-write"
       echo "failed: live apk not found" > "$log"
+      APPLY_RESULT="failed"
    elif /system/bin/busybox cmp -s "$stage" "$live"; then
       logi "june-local: $label patch already applied"
       echo "already-applied" > "$log"
+      APPLY_RESULT="already-applied"
    else
-      cp -f "$live" "/data/june/${label}_stock_backup.apk" 2>/dev/null
-      if cp -f "$stage" "$live" && /system/bin/busybox cmp -s "$stage" "$live"; then
+      backup="/data/june/${label}_stock_backup.apk"
+      backup_tmp="${backup}.tmp"
+      rm -f "$backup_tmp"
+      if ! cp -f "$live" "$backup_tmp" 2>/dev/null || \
+         ! /system/bin/busybox cmp -s "$live" "$backup_tmp" || \
+         ! /system/bin/busybox mv -f "$backup_tmp" "$backup" 2>/dev/null; then
+         rm -f "$backup_tmp"
+         logi "june-local: $label backup failed; refusing to replace live apk"
+         echo "failed: stock backup could not be created and verified" > "$log"
+         APPLY_RESULT="failed"
+         /system/bin/busybox chmod 0644 "$log" 2>/dev/null
+         return
+      fi
+      sync
+      live_tmp="${live}.june-new"
+      rm -f "$live_tmp"
+      if cp -f "$stage" "$live_tmp" && \
+         /system/bin/busybox cmp -s "$stage" "$live_tmp" && \
+         chmod 0644 "$live_tmp" && sync && \
+         /system/bin/busybox mv -f "$live_tmp" "$live" && \
+         /system/bin/busybox cmp -s "$stage" "$live"; then
          sync
          logi "june-local: $label patch applied"
          echo "applied: $(/system/bin/busybox sha256sum "$live" | /system/bin/busybox awk '{print $1}')" > "$log"
+         APPLY_RESULT="applied"
          # A /data staging copy is only needed once: drop it so later boots go
-         # back to the stock read-only mount. The /system copy stays in place
-         # and is re-applied after a factory reset.
+         # back to the stock read-only mount. A /system copy stays in its
+         # current system slot for the next boot.
          case "$stage" in
+            "$UPDATE_CHEF_STAGE") ;;
             /data/june/*) rm -f "$stage" ;;
          esac
       else
+         rm -f "$live_tmp"
          logi "june-local: $label patch FAILED; restoring stock apk"
          echo "failed: copy/verify failed" > "$log"
-         cp -f "/data/june/${label}_stock_backup.apk" "$live" 2>/dev/null
+         APPLY_RESULT="failed"
+         restore_tmp="${live}.june-rollback"
+         rm -f "$restore_tmp"
+         if cp -f "$backup" "$restore_tmp" 2>/dev/null && \
+            /system/bin/busybox cmp -s "$backup" "$restore_tmp" && \
+            chmod 0644 "$restore_tmp" && sync && \
+            /system/bin/busybox mv -f "$restore_tmp" "$live" 2>/dev/null && \
+            /system/bin/busybox cmp -s "$backup" "$live"; then
+            sync
+            logi "june-local: $label stock apk restored and verified"
+         else
+            rm -f "$restore_tmp"
+            logi "june-local: $label ROLLBACK FAILED; do not restart without recovery"
+            echo "failed: update and rollback both failed" > "$log"
+         fi
       fi
    fi
    /system/bin/busybox chmod 0644 "$log" 2>/dev/null
@@ -336,6 +410,41 @@ if [ -n "$MEDIACAPTURER_STAGE" ]; then
 fi
 if [ -n "$CHEF_STAGE" ]; then
    apply_staged_apk "$CHEF_STAGE" /system/priv-app/Chef/Chef.apk chef
+   if [ "$CHEF_STAGE" = "$UPDATE_CHEF_STAGE" ] && \
+      { [ "$APPLY_RESULT" = "applied" ] || [ "$APPLY_RESULT" = "already-applied" ]; }; then
+      /system/bin/busybox mkdir -p /system/etc/june /data/june/logs
+      if cp -f "$UPDATE_CHEF_STAGE" /system/etc/june/chef_cookmodes.apk 2>/dev/null && \
+         /system/bin/busybox cmp -s "$UPDATE_CHEF_STAGE" /system/etc/june/chef_cookmodes.apk; then
+         if cp -f "$UPDATE_PENDING" /data/june/updates/applied.json 2>/dev/null && \
+            /system/bin/busybox cmp -s "$UPDATE_PENDING" /data/june/updates/applied.json && \
+            cp -f "$UPDATE_PENDING" /system/etc/june/chef_update.json 2>/dev/null && \
+            /system/bin/busybox cmp -s "$UPDATE_PENDING" /system/etc/june/chef_update.json; then
+            /system/bin/busybox chmod 0644 /data/june/updates/applied.json
+            /system/bin/busybox chmod 0644 /system/etc/june/chef_update.json
+            sync
+            if rm -f "$UPDATE_READY" && sync; then
+               case "$UPDATE_TXN_DIR" in
+                  /data/june/updates/transactions/txn-*) rm -rf "$UPDATE_TXN_DIR" ;;
+               esac
+               echo "applied: wireless signed update promoted to /system/etc/june; sequence metadata retained" >> /data/june/logs/updater.log
+               /system/bin/busybox chmod 0644 /data/june/logs/updater.log
+               logi "june-local: wireless Chef update applied, metadata promoted, transaction cleared"
+            else
+               echo "failed: update applied but commit marker could not be cleared" >> /data/june/logs/updater.log
+               /system/bin/busybox chmod 0644 /data/june/logs/updater.log 2>/dev/null
+               logi "june-local: wireless update applied but commit marker cleanup failed"
+            fi
+         else
+            echo "failed: live update applied but downgrade metadata promotion failed" >> /data/june/logs/updater.log
+            /system/bin/busybox chmod 0644 /data/june/logs/updater.log 2>/dev/null
+            logi "june-local: wireless Chef applied but persistent metadata promotion failed"
+         fi
+      else
+         echo "failed: live update applied but persistent Chef copy failed" >> /data/june/logs/updater.log
+         /system/bin/busybox chmod 0644 /data/june/logs/updater.log 2>/dev/null
+         logi "june-local: wireless Chef applied but persistent copy failed; retaining staged update"
+      fi
+   fi
 fi
 
 # --- June Local: mDNS hostname + content mirror ----------------------------

@@ -4,6 +4,9 @@ installer/liveiso/assets/
 *.iso.sha256
 
 # Blobs and secrets: never commit
+.secrets/
+dist/
+release-input/
 *.apk
 # Our own tiny light-bridge helper is source-built and belongs in the payload;
 # all June-licensed APKs remain ignored.
