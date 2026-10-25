@@ -8,7 +8,7 @@
 
 GO ?= go
 GOENV = CGO_ENABLED=0
-VERSION ?= 0.8.1
+VERSION ?= 0.9.0
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS = -s -w -X main.appVersion=$(VERSION) -X main.appCommit=$(COMMIT) -X main.appBuild=$(BUILD_DATE)

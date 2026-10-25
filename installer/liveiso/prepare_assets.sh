@@ -102,12 +102,26 @@ fi
 # Chef cook-modes patch (optional). Built from the user's own stock Chef APK
 # with apk-patches/chef-cookmodes/build_patched.sh; June's assets are not
 # published. Without it the oven keeps the stock primitive whitelist.
-CHEF_APK="$ARCH/apk-patches/chef-cookmodes/Chef_cookmodes_signed.apk"
-if [ -f "$CHEF_APK" ]; then
-  cp "$CHEF_APK" "$DEST/"
-  echo "[*] Chef cook-modes patch included: $(du -h "$CHEF_APK" | cut -f1)"
+# Prefer the food-presence-acknowledgment build (the signed release the
+# wireless updater publishes); fall back to the previous build. Either way
+# the payload keeps the canonical Chef_cookmodes_signed.apk name that
+# install.sh/deploy_onoven.sh expect.
+CHEF_APK="${JUNE_CHEF_APK:-}"
+if [ -z "$CHEF_APK" ]; then
+  for cand in \
+    "$ARCH/apk-patches/chef-cookmodes/Chef_cookmodes_foodack_signed.apk" \
+    "$ARCH/apk-patches/chef-cookmodes/Chef_cookmodes_signed.apk"; do
+    if [ -f "$cand" ]; then
+      CHEF_APK="$cand"
+      break
+    fi
+  done
+fi
+if [ -n "$CHEF_APK" ] && [ -f "$CHEF_APK" ]; then
+  cp "$CHEF_APK" "$DEST/Chef_cookmodes_signed.apk"
+  echo "[*] Chef cook-modes patch included: $(du -h "$CHEF_APK" | cut -f1) ($(basename "$CHEF_APK"))"
 else
-  echo "[!] Chef cook-modes patch not found at $CHEF_APK; toast/other remote modes stay stock" >&2
+  echo "[!] Chef cook-modes patch not found; toast/other remote modes stay stock" >&2
 fi
 # Presets/recipes content mirror (catalog + program bundles). June's content is
 # licensed material: it is used here for personal/local installs only and is

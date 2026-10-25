@@ -8,12 +8,26 @@ for file in \
   onoven/deploy_onoven.sh \
   installer/liveiso/prepare_assets.sh \
   installer/liveiso/build_live_iso.sh \
+  installer/liveiso/build.sh \
+  onoven/june_reaper.sh.junelocal \
+  onoven/june_bootclear.sh.onoven; do
+  if grep -q $'\r' "$file"; then
+    echo "CRLF line endings in $file; the oven/live scripts must stay LF-only." >&2
+    echo "Normalize the file (sed -i 's/\\r$//' $file) before releasing." >&2
+    exit 1
+  fi
+done
+
+for file in \
+  onoven/deploy_onoven.sh \
+  installer/liveiso/prepare_assets.sh \
+  installer/liveiso/build_live_iso.sh \
   installer/liveiso/build.sh; do
-  bash -n <(tr -d '\r' < "$file")
+  bash -n "$file"
 done
 
 for file in onoven/june_reaper.sh.junelocal onoven/june_bootclear.sh.onoven; do
-  sh -n <(tr -d '\r' < "$file")
+  sh -n "$file"
 done
 
 cd golocal

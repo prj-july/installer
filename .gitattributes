@@ -1,0 +1,15 @@
+# The oven boot scripts and live-image scripts are executed by /system/bin/sh
+# and bash on Linux/Android; CRLF line endings break them at runtime.  Keep
+# every text format in this repository LF-only so a Windows checkout cannot
+# silently re-introduce CRLF.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary
+*.jpg binary
+*.apk binary
+*.iso binary
+*.img binary
+*.bct binary
+*.bin binary
+*.p12 binary
+*.jks binary

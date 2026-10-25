@@ -1,3 +1,53 @@
+# June Local installer v0.9.0 release notes
+
+Released: 2026-10-24
+
+Build: `TBD` (filled in after the build)
+
+ISO: `june-local-live.iso`
+
+SHA-256: `TBD`
+
+Size: `TBD` bytes
+
+v0.9.0 is v0.8.1 plus signed wireless updates for the oven. Everything in
+v0.8.1 and v0.8 below still applies.
+
+## Highlights
+
+### Wireless updates, signed end to end
+
+The oven can now pull a signed Chef APK release over outbound HTTPS — no
+inbound ADB, port forwarding, or shared private key. The release manifest is
+signed with an offline Ed25519 key, the public key is baked into the oven by
+the installer, and updates are verified (size, SHA-256, signature) before
+they are staged and atomically committed. Updates apply at boot with a
+byte-for-byte backup and rollback, and a `min_sequence` baseline keeps an
+older release from being replayed after a factory reset. Check and stage run
+from the signed status page (Software updates) or the new
+`june-wireless-update` client; controls require HTTPS and a per-install
+control token, and the token is redacted from request logs.
+
+This release bakes the Chef food-presence-acknowledgment build
+(`Chef_cookmodes_foodack_signed.apk`, release `2026.10.24-chef-foodack`,
+sequence `2026102401`) into the payload, matching the updater's signed
+baseline. The release signing key never ships in the ISO.
+
+Thank you, Phunctional, for the signed updater — publisher, clients, boot
+apply, rollback, and the end-to-end tests. This is the largest community
+contribution the installer has received.
+
+## Known notes
+
+- The updater publishes to
+  `https://downloads.project-july.org/oven-updates/stable/`; ovens show an
+  update error until the manifest is uploaded there.
+- After a factory reset, run Check for update again: the reset restores the
+  installer-baked Chef build and the updater baseline still prevents
+  downgrades.
+
+---
+
 # June Local installer v0.8.1 release notes
 
 Released: 2026-10-25

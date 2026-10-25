@@ -15,7 +15,7 @@ fi
 # "v0.8-3-g9a0350c" for later test builds, "-dirty" with uncommitted changes.
 # Tags may be v0.8 or 0.8; strip the leading v for display. JUNE_VERSION
 # overrides the tag.
-VERSION="${JUNE_VERSION:-$(git describe --tags --match 'v[0-9]*' --match '[0-9]*' --dirty 2>/dev/null || echo 0.8.1)}"
+VERSION="${JUNE_VERSION:-$(git describe --tags --match 'v[0-9]*' --match '[0-9]*' --dirty 2>/dev/null || echo 0.9.0)}"
 VERSION="${VERSION#v}"
 # The payload binaries and the identity/mDNS payload are part of the identity: a
 # rebuilt june-local or june-camerad, a different accounts template or identity
