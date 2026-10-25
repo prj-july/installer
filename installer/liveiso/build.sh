@@ -22,7 +22,11 @@ chmod +x \
   "config/includes.chroot$PAYLOAD/deploy_onoven.sh" \
   "config/includes.chroot$PAYLOAD/generate_certs.sh" \
   "config/includes.chroot$PAYLOAD/sign_leaf.sh" \
-  "config/includes.chroot$PAYLOAD/tegrarcm"
+  "config/includes.chroot$PAYLOAD/tegrarcm" \
+  "config/includes.chroot$PAYLOAD/june-backup" \
+  "config/includes.chroot$PAYLOAD/generate_identity.py" \
+  "config/includes.chroot$PAYLOAD/june-local-linux-armv7" \
+  "config/includes.chroot$PAYLOAD/june-camerad-linux-armv7"
 
 # Graphical installer: Python backend + web UI (see gui/).  The dev/ mock
 # tooling stays out of the image.
