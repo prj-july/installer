@@ -120,6 +120,12 @@ fi
 if [ -n "$CHEF_APK" ] && [ -f "$CHEF_APK" ]; then
   cp "$CHEF_APK" "$DEST/Chef_cookmodes_signed.apk"
   echo "[*] Chef cook-modes patch included: $(du -h "$CHEF_APK" | cut -f1) ($(basename "$CHEF_APK"))"
+  # Never bake an APK whose resources.arsc names files it does not contain.  The
+  # v0.9.0 foodack Chef build was rebuilt on a case-insensitive filesystem, lost
+  # the 35 resource files whose names differ only by case, and boot-looped every
+  # oven it was installed on.  Rebuild such an APK on a case-sensitive Linux
+  # filesystem (or point JUNE_CHEF_APK at a known-good build) and re-run.
+  python3 "$ROOT/scripts/check_apk_resources.py" "$DEST/Chef_cookmodes_signed.apk"
 else
   echo "[!] Chef cook-modes patch not found; toast/other remote modes stay stock" >&2
 fi

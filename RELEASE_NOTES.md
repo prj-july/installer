@@ -1,3 +1,9 @@
+> **Withdrawn 2026-10-25 — do not install v0.9.0.** The Chef app build this
+> release bakes is missing 35 resource files (its resource table names paths
+> that are not in the APK), so an installed oven loops on boot. Stay on v0.7
+> until the replacement build is published. Root cause, evidence and recovery:
+> [`docs/incidents/2026-10-25-v0.9.0-chef-apk.md`](docs/incidents/2026-10-25-v0.9.0-chef-apk.md).
+
 # June Local installer v0.9.0 release notes
 
 Released: 2026-10-24

@@ -30,6 +30,20 @@ for file in onoven/june_reaper.sh.junelocal onoven/june_bootclear.sh.onoven; do
   sh -n "$file"
 done
 
+# Every APK this release would bake must be internally consistent: resources.arsc
+# may not name resource files the zip lacks.  v0.9.0 shipped a Chef APK that did
+# (it was rebuilt on a case-insensitive filesystem, which collapsed the 35
+# resource files whose names differ only by case), and every oven it was
+# installed on boot-looped.  This gate is why that cannot ship again.
+if [ -d installer/liveiso/assets ]; then
+  shopt -s nullglob
+  baked_apks=(installer/liveiso/assets/*.apk)
+  shopt -u nullglob
+  if [ "${#baked_apks[@]}" -gt 0 ]; then
+    python3 scripts/check_apk_resources.py "${baked_apks[@]}"
+  fi
+fi
+
 cd golocal
 unformatted="$(gofmt -l \
   main.go rest.go status.go updater.go updater_test.go \
