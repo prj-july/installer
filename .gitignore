@@ -24,6 +24,8 @@ ca-tmp/
 *.bct
 *.bin
 upstream-content/
+# Local build blobs (RCM firmware/tools supplied outside the repo)
+june-rcm/
 # Go build output (built with make oven / make camerad)
 golocal/bin/
 installer/backup/june-backup

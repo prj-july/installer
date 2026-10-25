@@ -553,11 +553,12 @@ function mockApi() {
   return {
     // "#arm" previews the note an ARM computer shows.
     Info: async () => ({ version: "1.2", os: "windows", guideUrl: "https://project-july.org/setup", arm: location.hash === "#arm" }),
-    Release: async () => { await wait(400); return { version: "v0.8", url: "", sha256: "19378a2b9d75339d82655c8cf032b2d5caead5da71968563a5d94f7a45f824f3", size: 1413529600 }; },
+    Release: async () => { await wait(400); return { version: "v0.8.1", url: "", sha256: "8bb37bc681c61ba5d45ead47d46645f8795a3640db4b03b8a33533115a8e035e", size: 1413529600 }; },
     // "#one" leaves Releases out, to preview the latest.json-only screen.
     Releases: location.hash === "#one" ? undefined : async () => {
       await wait(400);
       return [
+        { version: "v0.8.1", sha256: "8bb37bc681c61ba5d45ead47d46645f8795a3640db4b03b8a33533115a8e035e", size: 1413529600, date: "2026-10-24" },
         { version: "v0.8", sha256: "19378a2b9d75339d82655c8cf032b2d5caead5da71968563a5d94f7a45f824f3", size: 1413529600, date: "2026-10-24" },
         { version: "v0.7", sha256: "ac0a86673b7cc7c15d73f7109066baf1a43f7f1f1767555b20d2dacef59438c5", size: 1413529600, date: "2026-10-11" },
         { version: "v0.6", sha256: "89a7d6b9d309241a4514b21a57ac9d49ea3f02853136193a26570613ff3d0608", size: 1413529600, date: "2026-10-11" },
@@ -571,7 +572,7 @@ function mockApi() {
         emit("bytes", { done: d, total: 1406533632, phase: "download" });
         await wait(80);
       }
-      return { path: "june-local-live.iso", version: version || "v0.8", sha256: "", size: 1413529600, verified: true, bios: true };
+      return { path: "june-local-live.iso", version: version || "v0.8.1", sha256: "", size: 1413529600, verified: true, bios: true };
     },
     ChooseISO: async () => ({ path: "x.iso", version: "build 20261005-09:29", sha256: "", size: 1405157376, verified: false, bios: false }),
     Cancel: () => { cancelled = true; },

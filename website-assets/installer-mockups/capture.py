@@ -31,10 +31,10 @@ SERVER = LIVEISO / "gui" / "server.py"
 PNG = HERE / "png"
 PORT = int(os.environ.get("MOCK_PORT", "8765"))
 BASE = f"http://127.0.0.1:{PORT}"
-VERSION = os.environ.get("JUNE_VERSION", "0.8")
-BUILD_ID = os.environ.get("JUNE_BUILD_ID", "20261024-1602-b5ca5293")
+VERSION = os.environ.get("JUNE_VERSION", "0.8.1")
+BUILD_ID = os.environ.get("JUNE_BUILD_ID", "20261024-1938-6a424294")
 # Re-render for a release with JUNE_VERSION=<version> JUNE_BUILD_ID=<build>, e.g.
-# JUNE_VERSION=0.8 JUNE_BUILD_ID=20261024-1602-b5ca5293 .venv/bin/python capture.py
+# JUNE_VERSION=0.8.1 JUNE_BUILD_ID=20261024-1938-6a424294 .venv/bin/python capture.py
 
 STAGES = [
     ("01-home.png", "Installer home",

@@ -107,7 +107,7 @@ On Windows, `JUNE_USB_ALLOW_VHD=1` lists attached VHDs.
 The app reads `https://downloads.project-july.org/installer/latest.json`:
 
 ```json
-{"version": "v0.8", "url": "https://downloads.project-july.org/installer/v0.8/june-local-live.iso",
+{"version": "v0.8.1", "url": "https://downloads.project-july.org/installer/v0.8.1/june-local-live.iso",
  "sha256": "<the published sha256>", "size": <bytes>}
 ```
 

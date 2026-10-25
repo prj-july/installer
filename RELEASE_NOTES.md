@@ -2,13 +2,13 @@
 
 Released: 2026-10-25
 
-Build: `TBD` (filled in after the build)
+Build: `20261024-1938-6a424294`
 
 ISO: `june-local-live.iso`
 
-SHA-256: `TBD`
+SHA-256: `8bb37bc681c61ba5d45ead47d46645f8795a3640db4b03b8a33533115a8e035e`
 
-Size: `TBD` bytes
+Size: `1,413,529,600` bytes
 
 v0.8.1 is v0.8 plus two community contributions from Matt (@mvanhorn) and two
 installer screen fixes. Everything in v0.8 below still applies.
