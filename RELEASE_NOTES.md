@@ -2,13 +2,13 @@
 
 Released: 2026-10-24
 
-Build: `TBD` (filled in after the build)
+Build: `20261024-2321-92e76458`
 
 ISO: `june-local-live.iso`
 
-SHA-256: `TBD`
+SHA-256: `1db073270cadf6d8cd9f2b49480882ccd3dea2212f28ae8055f1698314ccbe98`
 
-Size: `TBD` bytes
+Size: `1,416,314,880` bytes
 
 v0.9.0 is v0.8.1 plus signed wireless updates for the oven. Everything in
 v0.8.1 and v0.8 below still applies.

@@ -63,7 +63,7 @@ installer. It is written so a website author can turn it into a tutorial.
 
    Compare the result with the hash shown on the release page and in
    <https://downloads.project-july.org/installer/latest.json> (the same values
-   June USB checks). The 0.8.1 release is tagged `v0.8.1`; its build id and SHA256
+   June USB checks). The 0.9.0 release is tagged `v0.9.0`; its build id and SHA256
    are published with the release. Never trust a hash from anywhere else.
    The website should always show the current release's hash.
 
