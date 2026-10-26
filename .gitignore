@@ -40,3 +40,11 @@ installer/backup/june-backup
 __pycache__/
 *.pyc
 .venv/
+
+# The updater's public Mozilla-derived CA bundle is source, not a secret.
+# (certs/ and *.pem above exist to keep generated private keys out of git.)
+!golocal/certs/
+!golocal/certs/roots.pem
+
+# ISO build logs (the ISOs themselves are ignored too)
+installer/liveiso/build-*.log

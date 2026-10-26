@@ -48,6 +48,7 @@ BUILD_CONTAINER="june-local-liveiso-build"
 ARCHIVE="$(pwd)/june-local-live-${VERSION}-${BUILD_ID}.iso"
 cp -p "$OUT" "$ARCHIVE"
 ( cd "$(pwd)" && sha256sum "${ARCHIVE##*/}" > "${ARCHIVE##*/}.sha256" )
+( cd "$(pwd)" && sha256sum "${OUT##*/}" > "${OUT##*/}.sha256" )
 
 echo "ISO written to $OUT ($VERSION, build $BUILD_ID)"
 echo "Archived as $ARCHIVE"

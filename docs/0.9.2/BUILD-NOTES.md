@@ -11,13 +11,15 @@ PR #16 brings:
 - "Install from a file" (`POST /local/update/upload`), taking a signed bundle; make one with `june-update-publisher bundle -repo DIR -out X.zip`
 - an update password QR on the installer's last screen, also saved as `june-logs/update-password-qr.svg` on the stick
 
-**Also for 0.9.2: a Chef patch that adds Settings → Project July updates on the oven screen.** See CHEF-UPDATES-SCREEN.md. The june-local side (`/local/oven`, one-time phone codes) is in #16.
+**Also for 0.9.2: a Chef patch that adds a "Project July" home-screen tile which opens the
+oven's updates screen.** See CHEF-UPDATES-SCREEN.md. The june-local side (`/local/oven`,
+one-time phone codes) is in #16.
 
 No changes to june_reaper.sh, the manifest format, the signing key or the publish steps.
 The ISO needs `qrencode` (already in liveiso/build.sh).
 
 ## Smoke test on a real oven (in addition to the usual boot/app check)
-1. `https://<oven>/local` renders in the new look, fonts load, and tabs survive the 7 s refresh.
+1. `https://<name>.local/local` renders in the new look, fonts load, and tabs survive the 7 s refresh. (Use the .local name, not the raw IP: the basic certificate has no IP SAN.)
 2. Scan the installer's Update password QR. /local opens on Updates with the password filled in, and the address bar shows only `#updates`.
 3. Check now works. If a newer signed release is published, Download and get ready, then restart, applies it.
 4. After that apply, "Go back to the previous app" shows. Go back, restart, and the previous Chef is running; Check now then reports up to date for the undone release.
@@ -27,3 +29,6 @@ The ISO needs `qrencode` (already in liveiso/build.sh).
 - /local has a new look that matches the June USB installer and the app.
 - Report a problem shows exactly what it sends, lets you leave out log lines, and can prepare an email instead.
 - Updates: an update password QR code, Go back to the previous app, and Install from a file for ovens without internet.
+- The oven's home screen has a **Project July** tile that opens Updates. It shows the installed June Local version and can turn phone access to /local on or off.
+- Wireless updates work on the oven again: the updater uses Android's DNS properties and carries its own CA bundle, so Check now can reach the release server. The update token and password QR are saved to the Ventoy USB.
+- The ISO includes the preset/recipe content mirror again, so guided programs (proof, slow cook, recipes) work offline.

@@ -55,7 +55,14 @@ if ! grep -q 'prepare_identity_assets' "$DEST/deploy_onoven.sh" || \
   echo "[-] ./prepare_assets.sh); do not point JUNE_LR at local-resources/june-arch." >&2
   exit 1
 fi
-cp "$ARCH/companions_state.json" "$DEST/"
+# deploy_onoven.sh still stages /data/june/companions_state.json, but PR #12
+# removed the stray empty copy from the repo.  Recreate the empty {} state
+# (what 0.9.x shipped) when the source tree does not carry one.
+if [ -f "$ARCH/companions_state.json" ]; then
+  cp "$ARCH/companions_state.json" "$DEST/"
+else
+  printf '{}\n' > "$DEST/companions_state.json"
+fi
 cp "$ARCH/golocal/bin/june-local-linux-armv7" "$DEST/"
 cp "$ARCH/golocal/bin/june-camerad-linux-armv7" "$DEST/"
 if [ ! -f "$ARCH/golocal/bin/june-wireless-update-linux-amd64" ]; then
@@ -102,15 +109,17 @@ fi
 # Chef cook-modes patch (optional). Built from the user's own stock Chef APK
 # with apk-patches/chef-cookmodes/build_patched.sh; June's assets are not
 # published. Without it the oven keeps the stock primitive whitelist.
-# Prefer the food-presence-acknowledgment build (the signed release the
-# wireless updater publishes); fall back to the previous build. Either way
-# the payload keeps the canonical Chef_cookmodes_signed.apk name that
-# install.sh/deploy_onoven.sh expect.
+# Prefer the 0.9.2 Project July build, then the clean 0.9.1 cook-modes build.
+# The foodack build is withdrawn (it was rebuilt on a case-insensitive host and
+# lost 35 resources), so it is only a last resort and still has to pass the
+# resource check below. Either way the payload keeps the canonical
+# Chef_cookmodes_signed.apk name that install.sh/deploy_onoven.sh expect.
 CHEF_APK="${JUNE_CHEF_APK:-}"
 if [ -z "$CHEF_APK" ]; then
   for cand in \
-    "$ARCH/apk-patches/chef-cookmodes/Chef_cookmodes_foodack_signed.apk" \
-    "$ARCH/apk-patches/chef-cookmodes/Chef_cookmodes_signed.apk"; do
+    "$ARCH/apk-patches/chef-cookmodes/Chef_cookmodes_updates_signed.apk" \
+    "$ARCH/apk-patches/chef-cookmodes/Chef_cookmodes_signed.apk" \
+    "$ARCH/apk-patches/chef-cookmodes/Chef_cookmodes_foodack_signed.apk"; do
     if [ -f "$cand" ]; then
       CHEF_APK="$cand"
       break
@@ -125,7 +134,23 @@ if [ -n "$CHEF_APK" ] && [ -f "$CHEF_APK" ]; then
   # the 35 resource files whose names differ only by case, and boot-looped every
   # oven it was installed on.  Rebuild such an APK on a case-sensitive Linux
   # filesystem (or point JUNE_CHEF_APK at a known-good build) and re-run.
-  python3 "$ROOT/scripts/check_apk_resources.py" "$DEST/Chef_cookmodes_signed.apk"
+  CHECK_APK_RESOURCES="${CHECK_APK_RESOURCES:-}"
+  if [ -z "$CHECK_APK_RESOURCES" ]; then
+    for cand in \
+      "$ARCH/scripts/check_apk_resources.py" \
+      "$ROOT/installer/scripts/check_apk_resources.py" \
+      "$ROOT/scripts/check_apk_resources.py"; do
+      if [ -f "$cand" ]; then
+        CHECK_APK_RESOURCES="$cand"
+        break
+      fi
+    done
+  fi
+  if [ -z "$CHECK_APK_RESOURCES" ]; then
+    echo "[-] check_apk_resources.py not found; refusing to bake an unchecked Chef APK." >&2
+    exit 1
+  fi
+  python3 "$CHECK_APK_RESOURCES" "$DEST/Chef_cookmodes_signed.apk"
 else
   echo "[!] Chef cook-modes patch not found; toast/other remote modes stay stock" >&2
 fi
@@ -517,13 +542,20 @@ else
   if command -v cygpath >/dev/null 2>&1; then
     identity_template_arg="$(cygpath -w "$identity_template_src")"
   fi
+  # SQLite cannot reliably create/lock a database on the SMB/CIFS source
+  # tree, so build the template in a local temp file and copy the finished
+  # database into assets/ afterwards.
+  identity_template_tmp="$(mktemp "${TMPDIR:-/tmp}/june-accounts-template.XXXXXX")"
   if ! "$PYTHON" "$DEST/generate_identity.py" make-template \
-      "$identity_template_arg" "$DEST/accounts_template.db"; then
+      "$identity_template_arg" "$identity_template_tmp"; then
+    rm -f "$identity_template_tmp"
     echo "[-] Could not build the identity seed template from $identity_template_src." >&2
     echo "[-] Refusing to build an installer that cannot self-heal after a factory reset." >&2
     echo "[-] See docs/identity-generation.md." >&2
     exit 1
   fi
+  cp "$identity_template_tmp" "$DEST/accounts_template.db"
+  rm -f "$identity_template_tmp"
   echo "[*] identity seed template generated from $(basename "$identity_template_src")"
 fi
 

@@ -3,6 +3,14 @@ vm-record-run2/
 vm-record-run3/
 .__smbfile*
 june-local-live.iso
+# Every versioned archive too, so a rebuild does not send several GB of old
+# ISOs to the Docker daemon.
+*.iso
+*.iso.sha256
+*.iso.zsync
+build-*.log
+superseded/
+live/
 /*.mp4
 /*.ppm
 /*.png
