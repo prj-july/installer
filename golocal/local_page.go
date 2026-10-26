@@ -13,10 +13,12 @@ import (
 var localPageHTML string
 
 func handleLocalStatus(hub *Hub, cfg *Config, w http.ResponseWriter, r *http.Request) {
+	ensureFreshStatus(hub, cfg)
 	writeJSON(w, 200, currentStatus(hub, cfg))
 }
 
 func handleLocalPage(hub *Hub, cfg *Config, w http.ResponseWriter, r *http.Request) {
+	ensureFreshStatus(hub, cfg)
 	d := currentStatus(hub, cfg)
 	jb, _ := json.Marshal(d)
 	jsonText := strings.ReplaceAll(string(jb), "</", "<\\/")

@@ -81,6 +81,7 @@ const bytes = n => n > 1e9 ? (n/1e9).toFixed(1)+' GB' : (n > 1e6 ? (n/1e6).toFix
 let data = initial;
 const UPDATE_TOKEN_KEY = 'june-local-update-token';
 let updateToken = '';
+const userToggled = new Set();
 try { updateToken = sessionStorage.getItem(UPDATE_TOKEN_KEY) || ''; } catch (e) {}
 
 function tile(k, v, s, cls) { return `<div class="tile"><div class="k">${esc(k)}</div><div class="v ${cls||''}">${esc(v)}</div><div class="s">${esc(s)}</div></div>`; }
@@ -261,6 +262,17 @@ function render(d) {
     `<p>Read from <span class="mono">/data/system/users/0/accounts.db</span> and <span class="mono">/data/june/identity.json</span>. ` +
     `The full token is never shown. A <b>factory reset</b> wipes this row; it is re-created by the boot-time identity ensure from the installer seed on the next boot. ` +
     `june-local cannot create it at runtime — if it stays missing after a reboot, reinstall from the current USB image and check /data/june/logs/identity.log.</p>`;
+  // Re-rendering replaces the sections, so carry over what the reader was
+  // doing: which sections are open, the token being typed (and its focus),
+  // and the last update message.
+  const wasOpen = {};
+  document.querySelectorAll('#sections details').forEach(el => { wasOpen[el.id] = el.open; });
+  const oldInput = $('update-token');
+  const typed = oldInput ? oldInput.value : '';
+  const hadFocus = !!oldInput && document.activeElement === oldInput;
+  const caret = hadFocus ? [oldInput.selectionStart, oldInput.selectionEnd] : null;
+  const oldMsg = $('update-msg');
+  const msgState = oldMsg && !oldMsg.hidden ? { text: oldMsg.textContent, bad: oldMsg.classList.contains('bad') } : null;
   $('sections').innerHTML = details('sec-install','Install & components',comps + row('Summary', `${presentCount}/${compsList.length} present · ${verifiedCount} hash-verified · ${factoryCount} factory`)) +
     details('sec-identity','Local identity',identity) +
     details('sec-clients','Clients & pairing',clients) +
@@ -274,8 +286,19 @@ function render(d) {
 
   const open = {}; (d.problems||[]).forEach(p => { const m = { 'oven-disconnected':'sec-network','identity-missing':'sec-identity','cert-untrusted':'sec-cert','factory-fallback':'sec-install','camera-bridge':'sec-camera','light-bridge':'sec-camera','cert-expiry':'sec-cert','cert-ip-mismatch':'sec-cert','storage-low':'sec-storage' }; if (m[p.id]) open[m[p.id]] = 1; });
   if (upd.state === 'update-available' || upd.state === 'staged' || upd.state === 'error') open['sec-update'] = 1;
-  Object.keys(open).forEach(id => { const el = $(id); if (el) el.open = true; });
+  // A section the reader opened or closed keeps that state; the others keep
+  // their previous state and open when a problem points at them.
+  document.querySelectorAll('#sections details').forEach(el => {
+    el.open = userToggled.has(el.id) ? !!wasOpen[el.id] : (!!wasOpen[el.id] || !!open[el.id]);
+  });
   syncUpdateToken();
+  const newInput = $('update-token');
+  if (newInput && typed) newInput.value = typed;
+  if (newInput && hadFocus) {
+    newInput.focus();
+    try { newInput.setSelectionRange(caret[0], caret[1]); } catch (e) {}
+  }
+  if (msgState) setUpdateMessage(msgState.text, msgState.bad);
 }
 
 function refresh() { fetch('/local/status', {cache:'no-store'}).then(r=>r.json()).then(j=>{data=j;render(j);}).catch(()=>{}); }
@@ -309,6 +332,8 @@ $('copy').addEventListener('click', () => {
   });
 });
 $('sections').addEventListener('click', (event) => {
+  const summary = event.target.closest('summary');
+  if (summary && summary.parentElement) userToggled.add(summary.parentElement.id);
   const button = event.target.closest('[data-update]');
   if (button) runUpdateAction(button.getAttribute('data-update'));
 });

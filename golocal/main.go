@@ -174,7 +174,6 @@ func main() {
 		}
 		logLine("[init] loaded cook fixture %s", cfg.Fixture)
 	}
-	startStatusRefresher(hub, cfg)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		handleRoot(hub, cfg, w, r)
