@@ -50,6 +50,7 @@ type Config struct {
 	UpdateTokenFile      string
 	UpdatePersistentFile string
 	Updater              *Updater
+	ReportURL            string
 }
 
 var (
@@ -266,6 +267,7 @@ func parseFlags() *Config {
 	flag.StringVar(&cfg.UpdatesDir, "updates-dir", "/data/june/updates", "atomic update staging directory")
 	flag.StringVar(&cfg.UpdateTokenFile, "update-token-file", "/data/june/updates/control-token", "per-install wireless update control token")
 	flag.StringVar(&cfg.UpdatePersistentFile, "update-persistent-record", "/system/etc/june/chef_update.json", "release metadata retained beside the persistent Chef APK")
+	flag.StringVar(&cfg.ReportURL, "report-url", defaultReportURL, "where \"Send report\" on /local posts bug reports")
 	flag.Parse()
 	return cfg
 }
