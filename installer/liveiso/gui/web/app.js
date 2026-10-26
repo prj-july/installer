@@ -539,7 +539,10 @@ function infoQR(j) {
   if (!host) {
     return `<div class="dl"><div class="dl-card"><div><div class="opt-title">Oven status page</div><div class="opt-sub">Open <b>http://&lt;oven-ip&gt;/local</b> from a device on the same network. The <b>JuneDns</b> helper advertises <b>http://june.local/local</b>; if multicast is blocked, add a local DNS entry or use the IP.</div></div></div>${guide}</div>`;
   }
-  return `<div class="dl">${qrCard("oven", "June Local status page", `http://${esc(host)}/local — scan from a device on the same network.`)}${guide}</div>`;
+  // The update password QR opens https://<oven>/local with the password filled in. Scan it
+  // once from the phone you will update with; the same code is saved on the stick.
+  const update = qrCard("update", "Update password", `Opens https://${esc(host)}/local with the oven's update password filled in. Also saved on this stick in june-logs/.`);
+  return `<div class="dl">${qrCard("oven", "June Local status page", `http://${esc(host)}/local — scan from a device on the same network.`)}${update}${guide}</div>`;
 }
 
 function downloadsHTML(j) {

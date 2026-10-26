@@ -850,6 +850,16 @@ if [ -n "$update_token_value" ]; then
     if mkdir -p /media/ventoy/june-logs && \
        install -m 0600 "$update_token_file" /media/ventoy/june-logs/update-token.txt; then
       echo "[+] wireless update token saved to the boot USB: /june-logs/update-token.txt"
+      # The same password as a QR code that opens /local with it filled in. The
+      # password sits in the #fragment, which browsers never send to the oven.
+      qr_host="${install_ip:-${OVEN_HOST:-june}.local}"
+      qr_host="${qr_host%.local.local}"
+      if command -v qrencode >/dev/null 2>&1 && \
+         qrencode -t SVG -m 2 -l M -o /media/ventoy/june-logs/update-password-qr.svg \
+           "https://${qr_host}/local#updates&pw=${update_token_value}" 2>/dev/null; then
+        chmod 0600 /media/ventoy/june-logs/update-password-qr.svg 2>/dev/null || true
+        echo "[+] update password QR saved to the boot USB: /june-logs/update-password-qr.svg"
+      fi
     else
       echo "[!] could not save update token to the boot USB; installation will continue" >&2
     fi

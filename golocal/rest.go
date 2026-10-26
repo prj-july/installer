@@ -39,7 +39,8 @@ func handleREST(hub *Hub, cfg *Config, w http.ResponseWriter, r *http.Request) {
 	// Update controls have no request body. Route them before the generic body
 	// read so an unauthenticated LAN client cannot force a multi-gigabyte
 	// allocation before the HTTPS and token checks run.
-	if path == "/local/update" || path == "/local/update/check" || path == "/local/update/stage" {
+	if path == "/local/update" || path == "/local/update/check" || path == "/local/update/stage" ||
+		path == "/local/update/restore" || path == "/local/update/upload" {
 		logLine("[rest] %s %s ua=%s", r.Method, path, r.UserAgent())
 		writeJSONL(map[string]any{
 			"dir": "rest", "method": r.Method, "path": path,
@@ -49,7 +50,27 @@ func handleREST(hub *Hub, cfg *Config, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The oven's own Updates screen (loopback only) and the phone sign-in it hands out.
+	if handleOvenRoute(hub, cfg, w, r) {
+		return
+	}
+	if path == "/local/update/signin" {
+		logLine("[rest] %s %s ua=%s", r.Method, path, r.UserAgent())
+		handleUpdateSignin(cfg.Updater, w, r)
+		return
+	}
+
+	// Fonts for /local. Not logged: every page load asks for them.
+	if strings.HasPrefix(path, "/local/fonts/") {
+		handleLocalFont(w, r)
+		return
+	}
+
 	// Reports read their own small, capped body.
+	if path == "/local/report/preview" {
+		handleLocalReportPreview(hub, cfg, w, r)
+		return
+	}
 	if path == "/local/report" {
 		logLine("[rest] %s %s ua=%s", r.Method, path, r.UserAgent())
 		handleLocalReport(hub, cfg, w, r)

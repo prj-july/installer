@@ -34,6 +34,8 @@ from urllib.parse import parse_qs, quote, urlparse
 
 IMAGE_BYTES = 7818182656
 GUIDE_URL = "https://project-july.org/setup"
+# deploy_onoven.sh exports the oven's update password here (root-only, tmpfs).
+UPDATE_TOKEN_PATH = Path(os.environ.get("JUNE_UPDATE_TOKEN_FILE", "/run/june-installer/update-token"))
 APX_VENDOR, APX_PRODUCT = "0955", "7740"
 UI_MODE_FILE = Path("/run/june-ui-mode")
 COOKIE = "june_k"
@@ -983,7 +985,7 @@ class Handler(BaseHTTPRequestHandler):
             text = GUIDE_URL
         elif not self.is_local():
             raise ApiError(403, "Only the installer screen shows pairing codes.")
-        elif target == "oven":
+        elif target in ("oven", "update"):
             params = getattr(app.job, "params", None) or {}
             # Prefer the LAN IP a custom install used for the certificate; it
             # resolves even where mDNS (*.local) does not.
@@ -994,6 +996,14 @@ class Handler(BaseHTTPRequestHandler):
                 name = str(params.get("name") or "june").strip().rstrip(".") or "june"
                 host = name if name.endswith(".local") else name + ".local"
             text = f"http://{host}/local"
+            if target == "update":
+                # The update password rides in the #fragment: browsers never send it, so it
+                # stays out of the network and the oven's request log. /local reads it
+                # into the tab and wipes it from the address bar.
+                token = UPDATE_TOKEN_PATH.read_text().strip() if UPDATE_TOKEN_PATH.is_file() else ""
+                if not re.fullmatch(r"[0-9a-f]{64}", token):
+                    raise ApiError(404, "No update password yet.")
+                text = f"https://{host}/local#updates&pw={token}"
         elif not app.remote_enabled or not ips:
             raise ApiError(409, "Phone access is off or there is no network.")
         elif target == "phone":
