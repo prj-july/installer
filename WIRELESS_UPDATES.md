@@ -158,6 +158,19 @@ which browsers never send, so it stays out of the network and the oven's
 request log. The page keeps it for that browser tab and removes it from the
 address bar.
 
+### From the oven screen
+
+With the patched Chef, **Settings → Project July updates** opens
+`http://127.0.0.1/local/oven` in a WebView. Those `/local/oven` routes answer
+only requests from the oven itself (loopback), so Check, Install and Go back
+there need no password: being at the oven is the authorization.
+
+The same screen shows a QR code and an 8-character one-time code. The QR opens
+`https://<oven>/local#updates&code=<code>`; `/local` trades the code for the
+update password once (`POST /local/update/signin`, HTTPS and same-origin). A
+code expires after ten minutes, works once, and five wrong tries burn it.
+Typing the code into the password field on `/local` works too.
+
 ### Install from a file
 
 For an oven without internet access, zip a published repository and upload it

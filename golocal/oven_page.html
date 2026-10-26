@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Project July updates</title>
+<style>
+/* The oven's own Updates screen, opened by Chef in an Android 5 WebView: plain ES5 and
+   CSS without variables or grid, so it runs on the oven's old Chromium. */
+@font-face{font-family:"Barlow Semi Condensed";font-weight:400;src:url(/local/fonts/BarlowSemiCondensed-Regular.ttf) format("truetype")}
+@font-face{font-family:"Barlow Semi Condensed";font-weight:500;src:url(/local/fonts/BarlowSemiCondensed-Medium.ttf) format("truetype")}
+@font-face{font-family:"Barlow Semi Condensed";font-weight:600;src:url(/local/fonts/BarlowSemiCondensed-SemiBold.ttf) format("truetype")}
+@font-face{font-family:"Barlow Condensed";font-weight:300;src:url(/local/fonts/BarlowCondensed-Light.ttf) format("truetype")}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow-x:hidden}
+body{color:#f4f4f5;font:400 20px/1.35 "Barlow Semi Condensed","Barlow",sans-serif;-webkit-font-smoothing:antialiased;
+  background:#08090b;background:linear-gradient(180deg,#08090b,#0f1115)}
+.wrap{display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;min-height:100%;padding:20px 24px 14px}
+.top{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;margin-bottom:16px}
+.mark{width:40px;height:40px;color:#f89a4e;fill:#f89a4e;margin-right:12px;-webkit-filter:drop-shadow(0 0 6px rgba(255,106,26,.55));filter:drop-shadow(0 0 6px rgba(255,106,26,.55))}
+.eyebrow{font:600 14px/1.2 "Barlow Semi Condensed",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#a1a1aa}
+.top b{display:block;font:500 22px/1.2 "Barlow Semi Condensed",sans-serif}
+.cols{display:-webkit-flex;display:flex;-webkit-flex:1;flex:1}
+.col{-webkit-flex:1;flex:1;min-width:0}
+.col+.col{margin-left:20px}
+.card{border-radius:20px;padding:20px;background:#191a1d;background:linear-gradient(180deg,#191a1d,#24262a);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+.card.ember{background:#2e1511;background:radial-gradient(120% 75% at 50% 100%,rgba(255,86,24,.34),transparent 62%),linear-gradient(180deg,#1d1210,#2e1511);box-shadow:inset 0 0 0 1px rgba(255,122,64,.36),inset 0 1px 0 rgba(255,255,255,.07)}
+h2{font:600 15px/1.2 "Barlow Semi Condensed",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#a1a1aa;margin:0 0 8px}
+.release{font:300 46px/1.05 "Barlow Condensed","Barlow",sans-serif;margin:0 0 6px;word-wrap:break-word}
+.state{color:#a1a1aa;margin:0 0 16px}
+.state.ok{color:#4ade80}.state.warn{color:#fbbf24}.state.bad{color:#f87171}
+.btn{display:block;width:100%;min-height:64px;margin:10px 0 0;padding:0 20px;border:0;border-radius:14px;font:600 22px/64px "Barlow Semi Condensed",sans-serif;color:#0a0a0b;background:#f4f4f5;text-align:center;cursor:pointer}
+.btn.ember{color:#160a04;background:#ff7a2e;background:linear-gradient(90deg,#ff7a2e,#ffb04a);box-shadow:0 0 18px -4px rgba(255,106,26,.55)}
+.btn.ghost{color:#f4f4f5;background:transparent;box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}
+.btn:active{opacity:.8}
+.btn[disabled]{opacity:.35}
+.row{display:-webkit-flex;display:flex}
+.row .btn{-webkit-flex:1;flex:1}
+.row .btn+.btn{margin-left:10px}
+.notice{margin:12px 0 0;padding:14px 16px;border-radius:14px;font-size:18px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.10)}
+.notice.bad{background:rgba(248,113,113,.10);box-shadow:inset 0 0 0 1px rgba(248,113,113,.45)}
+.notice.warn{background:rgba(251,191,36,.08);box-shadow:inset 0 0 0 1px rgba(251,191,36,.45)}
+.notice b{display:block;font-weight:600;font-size:21px;margin-bottom:2px}
+.dim{color:#a1a1aa}
+.phone{display:-webkit-flex;display:flex;-webkit-align-items:flex-start;align-items:flex-start}
+.qr{-webkit-flex:none;flex:none;width:220px;height:220px;padding:10px;border-radius:16px;background:#fff;margin-right:18px}
+.qr svg{display:block;width:100%;height:100%}
+.code{font:500 30px/1.1 ui-monospace,"DejaVu Sans Mono",monospace;letter-spacing:.06em;color:#ffb04a;margin:4px 0 10px;white-space:nowrap}
+.addr{font:500 19px/1.3 ui-monospace,"DejaVu Sans Mono",monospace;word-wrap:break-word;word-break:break-all;margin:0 0 10px}
+.phone .txt{-webkit-flex:1;flex:1;min-width:0}
+.small{font-size:17px}
+.foot{margin-top:12px;font-size:14px;color:#a1a1aa}
+@media (max-width:900px),(max-height:520px){
+  body{font-size:18px}
+  .wrap{padding:14px 16px 10px}
+  .top{margin-bottom:10px}
+  .release{font-size:36px}
+  .card{padding:16px}
+  .qr{width:160px;height:160px;padding:8px;margin-right:14px}
+  .code{font-size:26px}
+  .addr{font-size:16px}
+  .btn{min-height:64px;font-size:20px}
+  .notice{font-size:16px}
+  .notice b{font-size:18px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><path fill-rule="evenodd" d="M11 12H53A7 7 0 0 1 60 19V41A7 7 0 0 1 53 48H11A7 7 0 0 1 4 41V19A7 7 0 0 1 11 12ZM13.25 16.5H50.75A1.25 1.25 0 0 1 52 17.75V17.75A1.25 1.25 0 0 1 50.75 19H13.25A1.25 1.25 0 0 1 12 17.75V17.75A1.25 1.25 0 0 1 13.25 16.5ZM13.5 23H50.5A3.5 3.5 0 0 1 54 26.5V39.5A3.5 3.5 0 0 1 50.5 43H13.5A3.5 3.5 0 0 1 10 39.5V26.5A3.5 3.5 0 0 1 13.5 23Z"/><path d="M46.25 28.5H50.25A1.25 1.25 0 0 1 51.5 29.75V39.25A1.25 1.25 0 0 1 50.25 40.5H46.25A1.25 1.25 0 0 1 45 39.25V29.75A1.25 1.25 0 0 1 46.25 28.5ZM10.5 48H16.5A1.5 1.5 0 0 1 18 49.5V50A1.5 1.5 0 0 1 16.5 51.5H10.5A1.5 1.5 0 0 1 9 50V49.5A1.5 1.5 0 0 1 10.5 48ZM47.5 48H53.5A1.5 1.5 0 0 1 55 49.5V50A1.5 1.5 0 0 1 53.5 51.5H47.5A1.5 1.5 0 0 1 46 50V49.5A1.5 1.5 0 0 1 47.5 48Z"/></svg>
+    <div><span class="eyebrow">Project July</span><b>Updates</b></div>
+  </div>
+  <div class="cols">
+    <div class="col"><div class="card" id="software"><h2>Software</h2><p class="release">…</p><p class="state">Loading…</p></div></div>
+    <div class="col"><div class="card" id="phone"><h2>Update from your phone</h2><p class="dim">Loading…</p></div></div>
+  </div>
+  <div class="foot">June Local {{VERSION}}</div>
+</div>
+<script>
+(function () {
+  var status = null;   // the last UpdateStatus
+  var confirming = ''; // 'stage' or 'restore' while the in-page confirm shows
+  var busy = '';       // the action being sent
+  var message = null;  // {text, bad}
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function mb(n) { return n ? (n / 1e6).toFixed(1) + ' MB' : ''; }
+
+  function request(method, url, done) {
+    var x = new XMLHttpRequest();
+    x.open(method, url, true);
+    x.setRequestHeader('Cache-Control', 'no-store');
+    x.timeout = method === 'POST' ? 20 * 60 * 1000 : 15000;
+    x.onreadystatechange = function () {
+      if (x.readyState !== 4) return;
+      var body = null;
+      try { body = JSON.parse(x.responseText); } catch (e) { body = null; }
+      done(x.status, body || {});
+    };
+    x.send(method === 'POST' ? '' : null);
+  }
+
+  function stateLine(u) {
+    if (!u.enabled) return ['Updates aren’t set up', 'warn'];
+    if (busy === 'check') return ['Checking for an update…', ''];
+    if (busy === 'stage') return ['Downloading and checking the update…', ''];
+    if (busy === 'restore') return ['Getting the previous app ready…', ''];
+    if (u.pending) return ['Ready. Restart the oven to finish.', 'warn'];
+    if (u.state === 'update-available' && u.available) return [u.available.release + ' is available', 'warn'];
+    if (u.state === 'error') return ['The last update attempt failed', 'bad'];
+    if (u.state === 'checking') return ['Checking for an update…', ''];
+    if (u.last_checked_at) return ['Up to date', 'ok'];
+    return ['Not checked yet', ''];
+  }
+
+  function renderSoftware() {
+    var u = status || {};
+    var html = '<h2>Software</h2>';
+    html += '<p class="release">' + esc(u.current_release || 'installer baseline') + '</p>';
+    var line = stateLine(u);
+    html += '<p class="state ' + line[1] + '">' + esc(line[0]) + '</p>';
+    if (!u.enabled) {
+      html += '<div class="notice"><b>Updates aren’t set up on this oven.</b>Update it with the June USB stick.</div>';
+      $('software').className = 'card';
+      $('software').innerHTML = html;
+      return;
+    }
+    var off = busy ? ' disabled' : '';
+    var avail = u.available, pending = u.pending, restore = u.restore;
+    if (pending) {
+      html += '<div class="notice warn"><b>Restart the oven to finish</b>' + esc(pending.release) +
+        ' is downloaded and checked. Turn the oven off and on at the wall when it isn’t cooking. It keeps the current app as a backup.</div>';
+    } else if (confirming === 'stage' && avail) {
+      html += '<div class="notice"><b>Install ' + esc(avail.release) + '?</b>It downloads now' +
+        (avail.artifact_size ? ' (' + mb(avail.artifact_size) + ')' : '') +
+        ' and goes in the next time the oven restarts. Nothing changes until then.</div>' +
+        '<div class="row"><button class="btn ghost" data-act="cancel"' + off + '>Not now</button>' +
+        '<button class="btn ember" data-act="stage"' + off + '>Install</button></div>';
+    } else if (confirming === 'restore' && restore) {
+      html += '<div class="notice"><b>Go back to the previous app?</b>The app from before ' + esc(restore.undoes) +
+        ' goes back in the next time the oven restarts.</div>' +
+        '<div class="row"><button class="btn ghost" data-act="cancel"' + off + '>Not now</button>' +
+        '<button class="btn ember" data-act="restore"' + off + '>Go back</button></div>';
+    } else {
+      if (avail && u.state === 'update-available') {
+        if (avail.notes) html += '<div class="notice small">' + esc(avail.notes) + '</div>';
+        html += '<button class="btn ember" data-act="ask-stage"' + off + '>Install ' + esc(avail.release) + '</button>';
+      }
+      html += '<button class="btn' + (avail && u.state === 'update-available' ? ' ghost' : '') + '" data-act="check"' + off + '>' +
+        (busy === 'check' ? 'Checking…' : 'Check for updates') + '</button>';
+      if (restore) html += '<button class="btn ghost" data-act="ask-restore"' + off + '>Go back to the previous app</button>';
+    }
+    if (message) html += '<div class="notice' + (message.bad ? ' bad' : '') + '">' + esc(message.text) + '</div>';
+    else if (u.state === 'error' && u.last_error) html += '<div class="notice bad">' + esc(u.last_error) + '</div>';
+    $('software').className = 'card' + (avail && u.state === 'update-available' && !pending ? ' ember' : '');
+    $('software').innerHTML = html;
+  }
+
+  function act(action) {
+    if (action === 'ask-stage') { confirming = 'stage'; message = null; renderSoftware(); return; }
+    if (action === 'ask-restore') { confirming = 'restore'; message = null; renderSoftware(); return; }
+    if (action === 'cancel') { confirming = ''; renderSoftware(); return; }
+    busy = action; message = null; renderSoftware();
+    request('POST', '/local/oven/update/' + action, function (code, body) {
+      busy = ''; confirming = '';
+      if (body.update) status = body.update;
+      if (code === 200 && body.success) {
+        message = { text: action === 'check'
+          ? (status && status.available && status.state === 'update-available' ? 'There is an update.' : 'This oven is up to date.')
+          : 'Ready. Restart the oven to finish.', bad: false };
+      } else {
+        message = { text: body.error || (code ? 'The oven answered ' + code + '.' : 'June Local did not answer.'), bad: true };
+      }
+      renderSoftware();
+    });
+  }
+
+  $('software').onclick = function (e) {
+    var t = e.target;
+    while (t && t !== this && !t.getAttribute('data-act')) t = t.parentNode;
+    if (t && t !== this && !t.disabled) act(t.getAttribute('data-act'));
+  };
+
+  function poll() {
+    if (busy) return;
+    request('GET', '/local/update', function (code, body) {
+      if (code === 200 && body.update && !busy) { status = body.update; renderSoftware(); }
+      else if (!status) { status = { enabled: false }; renderSoftware(); }
+    });
+  }
+
+  function loadSignin() {
+    request('GET', '/local/oven/signin', function (code, body) {
+      var html = '<h2>Update from your phone</h2>';
+      if (code === 200 && body.success && body.qr_svg) {
+        var mins = Math.max(1, Math.round((body.expires_in || 600) / 60));
+        html += '<div class="phone"><div class="qr">' + body.qr_svg + '</div><div class="txt">' +
+          '<div class="dim small">Address</div><p class="addr">' + esc(body.address) + '</p>' +
+          '<div class="dim small">Code</div><p class="code">' + esc(body.code) + '</p></div></div>' +
+          '<p class="dim small">Scan with your phone’s camera, or open the address and enter the code. The code works once and expires in ' +
+          mins + ' min.</p>';
+      } else {
+        html += '<div class="notice">' + esc(body.error || 'The phone code isn’t available right now.') + '</div>';
+      }
+      $('phone').innerHTML = html;
+    });
+  }
+
+  poll();
+  loadSignin();
+  setInterval(poll, 4000);
+  setInterval(loadSignin, 60000);
+})();
+</script>
+</body>
+</html>

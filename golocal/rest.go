@@ -50,6 +50,16 @@ func handleREST(hub *Hub, cfg *Config, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The oven's own Updates screen (loopback only) and the phone sign-in it hands out.
+	if handleOvenRoute(hub, cfg, w, r) {
+		return
+	}
+	if path == "/local/update/signin" {
+		logLine("[rest] %s %s ua=%s", r.Method, path, r.UserAgent())
+		handleUpdateSignin(cfg.Updater, w, r)
+		return
+	}
+
 	// Fonts for /local. Not logged: every page load asks for them.
 	if strings.HasPrefix(path, "/local/fonts/") {
 		handleLocalFont(w, r)

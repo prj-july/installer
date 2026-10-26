@@ -240,6 +240,8 @@ let activeTab = null, userPickedTab = false;
 const hashParts = location.hash.slice(1).split('&');
 const fromHash = hashParts[0];
 const pw = (hashParts.find(p => p.startsWith('pw=')) || '').slice(3);
+// The oven's own Updates screen hands out a one-time code instead (#updates&code=...).
+const codeFromHash = (hashParts.find(p => p.startsWith('code=')) || '').slice(5);
 if (/^[0-9a-f]{64}$/.test(pw)) {
   updateToken = pw;
   try { sessionStorage.setItem(UPDATE_TOKEN_KEY, pw); } catch (e) {}
@@ -310,8 +312,8 @@ function updatesPanel(upd, secure) {
     html += `<div class="notice bad"><b>Open the secure page to update.</b> The update password must not cross your network unencrypted. <a href="https://${esc(location.hostname)}/local#updates">Open https://${esc(location.hostname)}/local</a></div>`;
   }
   if (can) {
-    html += `<label class="field"><span>Update password</span><input id="update-token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="From the June USB stick"></label>` +
-      `<p class="note">It's on the stick you installed with, in <span class="mono">june-logs/update-token.txt</span>, and on the installer's last screen. The oven keeps its copy in <span class="mono">/data/june/updates/control-token</span>.</p><div style="height:12px"></div>`;
+    html += `<label class="field"><span>Update password or oven code</span><input id="update-token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Code from the oven, or the password from the stick"></label>` +
+      `<p class="note">Easiest: on the oven, open <b>Settings → Project July updates</b> and scan its QR code, or type the code it shows. The full password is also on the stick you installed with, in <span class="mono">june-logs/update-token.txt</span>.</p><div style="height:12px"></div>`;
   }
   html += `<ol class="steps">` +
     `<li class="${cls(1)}"><span class="n">${step > 1 ? '✓' : '1'}</span><div><b>Check for an update</b>` +
@@ -419,13 +421,30 @@ function setUpdateMessage(text, bad) {
   el.className = 'notice' + (bad ? ' bad' : '');
   el.textContent = text || '';
 }
+// Trades a code from the oven's screen for the update password, once.
+async function signInWithCode(code) {
+  const res = await fetch('/local/update/signin', { method: 'POST', cache: 'no-store',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok || !out.token) throw new Error(out.error || ('HTTP ' + res.status));
+  updateToken = out.token;
+  try { sessionStorage.setItem(UPDATE_TOKEN_KEY, out.token); } catch (e) {}
+  const input = $('update-token');
+  if (input) input.value = out.token;
+  return out.token;
+}
+const isOvenCode = s => /^[0-9a-z]{4}-?[0-9a-z]{4}$/i.test(s);
+
 async function runUpdateAction(action, file) {
   if (location.protocol !== 'https:') {
     setUpdateMessage('Open this page over HTTPS before entering the update password.', true);
     return;
   }
   const input = $('update-token');
-  const token = (input && input.value.trim()) || updateToken;
+  let token = (input && input.value.trim()) || updateToken;
+  if (token && isOvenCode(token)) {
+    try { token = await signInWithCode(token); } catch (err) { setUpdateMessage(err.message, true); return; }
+  }
   if (!token) {
     setUpdateMessage('Enter the update password from the June USB stick.', true);
     if (input) input.focus();
@@ -635,6 +654,14 @@ $('report-send').addEventListener('click', async () => {
   }
 });
 render(initial);
+if (codeFromHash) {
+  if (location.protocol !== 'https:') {
+    setUpdateMessage('Open https://' + location.hostname + '/local to use the code from the oven.', true);
+  } else {
+    signInWithCode(codeFromHash).then(() => setUpdateMessage('Signed in with the code from the oven. You can update from this page now.', false))
+      .catch(err => setUpdateMessage(err.message, true));
+  }
+}
 setInterval(()=>{ if(!document.hidden) refresh(); }, 7000);
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh(); });
 </script>
