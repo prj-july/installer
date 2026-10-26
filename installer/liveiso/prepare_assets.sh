@@ -627,7 +627,7 @@ ventoy_remount_rw() {
 # loop device backed by it (the live system can end up with the boot USB
 # mounted through /dev/loopN, which `findmnt --source /dev/sdX` never matches).
 mounts_for_partition() {
-  local part lp
+  local part="$1" lp
   findmnt -rno TARGET --source "$part" 2>/dev/null || true
   command -v losetup >/dev/null 2>&1 || return 0
   while IFS= read -r lp; do
@@ -1083,7 +1083,7 @@ boot_writable_destination() {
 # loop device backed by it (the live system can end up with the boot USB
 # mounted through /dev/loopN, which `findmnt --source /dev/sdX` never matches).
 mounts_for_partition() {
-  local part lp
+  local part="$1" lp
   findmnt -rno TARGET --source "$part" 2>/dev/null || true
   command -v losetup >/dev/null 2>&1 || return 0
   while IFS= read -r lp; do
