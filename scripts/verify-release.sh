@@ -44,9 +44,26 @@ if [ -d installer/liveiso/assets ]; then
   fi
 fi
 
+# The on-oven updater carries its own CA bundle because a static linux/arm Go
+# binary cannot use the Android trust store.  The bundle must contain GTS Root
+# R4, which signs the Cloudflare chain used by downloads.project-july.org.
+if [ ! -f golocal/certs/roots.pem ]; then
+  echo "missing golocal/certs/roots.pem; the updater cannot verify the release server" >&2
+  exit 1
+fi
+if command -v openssl >/dev/null 2>&1; then
+  if ! openssl crl2pkcs7 -nocrl -certfile golocal/certs/roots.pem 2>/dev/null |
+       openssl pkcs7 -print_certs -noout 2>/dev/null |
+       grep -q 'GTS Root R4'; then
+    echo "golocal/certs/roots.pem does not contain GTS Root R4; refusing the release" >&2
+    exit 1
+  fi
+fi
+
 cd golocal
 unformatted="$(gofmt -l \
   main.go rest.go status.go updater.go updater_test.go \
+  netenv.go roots.go netenv_test.go roots_test.go settings.go settings_test.go \
   internal/update/*.go cmd/june-update-publisher/*.go cmd/june-wireless-update/*.go)"
 if [ -n "$unformatted" ]; then
   echo "Go files need gofmt:" >&2

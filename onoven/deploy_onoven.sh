@@ -846,19 +846,35 @@ if [ -n "$update_token_value" ]; then
   else
     echo "[!] could not export update token to /run; installation will continue" >&2
   fi
-  if [ -d /media/ventoy ]; then
-    if mkdir -p /media/ventoy/june-logs && \
-       install -m 0600 "$update_token_file" /media/ventoy/june-logs/update-token.txt; then
-      echo "[+] wireless update token saved to the boot USB: /june-logs/update-token.txt"
+  # The live installer mounts the Ventoy data partition at /mnt/june-ventoy, not
+  # /media/ventoy.  Ask backup.sh where it is, then fall back to the historical
+  # paths.  This is what makes update-token.txt and the password QR actually
+  # land on the boot USB (v0.9.1 only wrote them when /media/ventoy existed).
+  ventoy_mnt="$(bash "$SRC_DIR/backup.sh" ventoy-dir 2>/dev/null || true)"
+  if [ -z "$ventoy_mnt" ]; then
+    for candidate in /mnt/june-ventoy /media/ventoy; do
+      if [ -d "$candidate" ]; then
+        ventoy_mnt="$candidate"
+        break
+      fi
+    done
+  fi
+  if [ -n "$ventoy_mnt" ]; then
+    if mkdir -p "$ventoy_mnt/june-logs" && \
+       install -m 0600 "$update_token_file" "$ventoy_mnt/june-logs/update-token.txt"; then
+      echo "[+] wireless update token saved to the boot USB: $ventoy_mnt/june-logs/update-token.txt"
       # The same password as a QR code that opens /local with it filled in. The
       # password sits in the #fragment, which browsers never send to the oven.
-      qr_host="${install_ip:-${OVEN_HOST:-june}.local}"
-      qr_host="${qr_host%.local.local}"
+      # Use the oven's .local name, not the raw IP: the basic install's
+      # certificate has no IP SAN, so https://<ip>/local fails hostname check.
+      qr_host="${OVEN_HOST:-june}"
+      qr_host="${qr_host%.local}"
+      qr_host="${qr_host}.local"
       if command -v qrencode >/dev/null 2>&1 && \
-         qrencode -t SVG -m 2 -l M -o /media/ventoy/june-logs/update-password-qr.svg \
+         qrencode -t SVG -m 2 -l M -o "$ventoy_mnt/june-logs/update-password-qr.svg" \
            "https://${qr_host}/local#updates&pw=${update_token_value}" 2>/dev/null; then
-        chmod 0600 /media/ventoy/june-logs/update-password-qr.svg 2>/dev/null || true
-        echo "[+] update password QR saved to the boot USB: /june-logs/update-password-qr.svg"
+        chmod 0600 "$ventoy_mnt/june-logs/update-password-qr.svg" 2>/dev/null || true
+        echo "[+] update password QR saved to the boot USB: $ventoy_mnt/june-logs/update-password-qr.svg"
       fi
     else
       echo "[!] could not save update token to the boot USB; installation will continue" >&2

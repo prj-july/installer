@@ -64,9 +64,16 @@ func handleOvenRoute(hub *Hub, cfg *Config, w http.ResponseWriter, r *http.Reque
 	}
 	switch {
 	case path == "/local/oven" && r.Method == http.MethodGet:
-		page := strings.ReplaceAll(ovenPageHTML, "{{VERSION}}", html.EscapeString(appVersion))
+		page := ovenPageHTML
+		page = strings.ReplaceAll(page, "{{VERSION}}", html.EscapeString(appVersion))
+		page = strings.ReplaceAll(page, "{{COMMIT}}", html.EscapeString(appCommit))
+		page = strings.ReplaceAll(page, "{{BUILD}}", html.EscapeString(appBuild))
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write([]byte(page))
+	case path == "/local/oven/settings" && r.Method == http.MethodGet:
+		handleOvenSettingsGet(cfg, w)
+	case path == "/local/oven/settings" && r.Method == http.MethodPost:
+		handleOvenSettingsSet(cfg, w, r)
 	case path == "/local/oven/signin" && r.Method == http.MethodGet:
 		handleOvenSignin(hub, cfg, w)
 	case strings.HasPrefix(path, "/local/oven/update/") && r.Method == http.MethodPost:
@@ -75,6 +82,43 @@ func handleOvenRoute(hub *Hub, cfg *Config, w http.ResponseWriter, r *http.Reque
 		http.NotFound(w, r)
 	}
 	return true
+}
+
+// handleOvenSettingsGet backs the "Phone access to /local" card on the oven's
+// Updates screen.
+func handleOvenSettingsGet(cfg *Config, w http.ResponseWriter) {
+	st := localUISettings{}
+	if cfg != nil && cfg.LocalSettings != nil {
+		st = cfg.LocalSettings.Get()
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"success": true, "settings": st})
+}
+
+// handleOvenSettingsSet turns the phone-facing /local page on or off. It is
+// only reachable over loopback (see handleOvenRoute), so being at the oven is
+// the authorization, exactly like the update controls.
+func handleOvenSettingsSet(cfg *Config, w http.ResponseWriter, r *http.Request) {
+	if cfg == nil || cfg.LocalSettings == nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"success": false, "error": "settings are not available on this oven"})
+		return
+	}
+	var req struct {
+		LocalUIDisabled *bool `json:"local_ui_disabled"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil || req.LocalUIDisabled == nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "send {\"local_ui_disabled\": true or false}"})
+		return
+	}
+	if err := cfg.LocalSettings.SetLocalUIDisabled(*req.LocalUIDisabled); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false, "error": err.Error()})
+		return
+	}
+	if *req.LocalUIDisabled {
+		logLine("[local] phone access to /local turned off from the oven screen")
+	} else {
+		logLine("[local] phone access to /local turned back on from the oven screen")
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"success": true, "settings": cfg.LocalSettings.Get()})
 }
 
 func handleOvenUpdate(u *Updater, action string, w http.ResponseWriter, r *http.Request) {
@@ -117,7 +161,8 @@ func handleOvenSignin(hub *Hub, cfg *Config, w http.ResponseWriter) {
 	code, expires := signin.code, signin.expires
 	signin.Unlock()
 
-	host := networkStatus(cfg).IP
+	netStatus := networkStatus(cfg)
+	host := netStatus.MDNS
 	if host == "" {
 		host = "june.local"
 	}
@@ -176,7 +221,7 @@ func handleUpdateSignin(u *Updater, w http.ResponseWriter, r *http.Request) {
 	defer signin.Unlock()
 	if signin.code == "" || time.Now().After(signin.expires) {
 		signin.code = ""
-		writeJSON(w, http.StatusUnauthorized, map[string]any{"success": false, "error": "that code has expired; open Settings → Project July updates on the oven for a new one"})
+		writeJSON(w, http.StatusUnauthorized, map[string]any{"success": false, "error": "that code has expired; open the Project July tile on the oven for a new one"})
 		return
 	}
 	if subtle.ConstantTimeCompare([]byte(given), []byte(signin.code)) != 1 {

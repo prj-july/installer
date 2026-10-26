@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
+	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -259,8 +260,17 @@ func newUpdater(opts updaterOptions) (*Updater, error) {
 	if opts.Client != nil {
 		u.client = opts.Client
 	} else {
+		// The oven is a static linux/arm binary, so the system cert pool is
+		// empty there.  Use the embedded Mozilla-derived roots for the
+		// manifest and artifact fetches.
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		transport.TLSClientConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+			RootCAs:    embeddedRoots(),
+		}
 		u.client = &http.Client{
-			Timeout: updateDownloadTimeout,
+			Timeout:   updateDownloadTimeout,
+			Transport: transport,
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				if len(via) >= 5 {
 					return errors.New("too many redirects")

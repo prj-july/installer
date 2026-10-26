@@ -140,8 +140,12 @@ once when generated.
 Open the signed status page over HTTPS:
 
 ```text
-https://<oven-ip>/local
+https://<name>.local/local
 ```
+
+Use the oven's `.local` name (for example `https://june2.local`), not the raw
+IP. The basic install's certificate has no IP SAN, so `https://<oven-ip>/local`
+fails hostname verification; the oven page's QR uses the `.local` name.
 
 If the per-home CA is not trusted by the browser, install the CA from
 `/local/ca.crt` first. HTTP status remains readable, but check/stage controls
@@ -153,20 +157,20 @@ power-cycle the oven normally.
 
 The installer's last screen shows an **Update password** QR code, and the same
 code is saved on the stick as `/june-logs/update-password-qr.svg`. It opens
-`https://<oven>/local#updates&pw=<token>`: the token sits in the URL fragment,
+`https://<name>.local/local#updates&pw=<token>`: the token sits in the URL fragment,
 which browsers never send, so it stays out of the network and the oven's
 request log. The page keeps it for that browser tab and removes it from the
 address bar.
 
 ### From the oven screen
 
-With the patched Chef, **Settings → Project July updates** opens
+With the patched Chef, the **Project July** tile on Chef's home screen opens
 `http://127.0.0.1/local/oven` in a WebView. Those `/local/oven` routes answer
 only requests from the oven itself (loopback), so Check, Install and Go back
 there need no password: being at the oven is the authorization.
 
 The same screen shows a QR code and an 8-character one-time code. The QR opens
-`https://<oven>/local#updates&code=<code>`; `/local` trades the code for the
+`https://<name>.local/local#updates&code=<code>`; `/local` trades the code for the
 update password once (`POST /local/update/signin`, HTTPS and same-origin). A
 code expires after ten minutes, works once, and five wrong tries burn it.
 Typing the code into the password field on `/local` works too.
@@ -177,7 +181,7 @@ For an oven without internet access, zip a published repository and upload it
 from **Updates → Install from a file**:
 
 ```sh
-golocal/bin/june-update-publisher bundle -repo dist/oven-updates/stable -out june-chef-2026.10.26.zip
+golocal/bin/june-update-publisher bundle -repo dist/oven-updates-0.9.2/stable -out june-chef-2026.10.26.zip
 ```
 
 The bundle is `manifest.json`, `manifest.sig` and the artifact the manifest
@@ -201,17 +205,17 @@ The command-line client is an alternative:
 
 ```sh
 golocal/bin/june-wireless-update \
-  -oven https://192.168.1.100 \
+  -oven https://june2.local \
   -ca june-local-ca.crt \
   -token-file update-token.txt status
 
 golocal/bin/june-wireless-update \
-  -oven https://192.168.1.100 \
+  -oven https://june2.local \
   -ca june-local-ca.crt \
   -token-file update-token.txt check
 
 golocal/bin/june-wireless-update \
-  -oven https://192.168.1.100 \
+  -oven https://june2.local \
   -ca june-local-ca.crt \
   -token-file update-token.txt stage
 ```

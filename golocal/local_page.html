@@ -313,7 +313,7 @@ function updatesPanel(upd, secure) {
   }
   if (can) {
     html += `<label class="field"><span>Update password or oven code</span><input id="update-token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Code from the oven, or the password from the stick"></label>` +
-      `<p class="note">Easiest: on the oven, open <b>Settings → Project July updates</b> and scan its QR code, or type the code it shows. The full password is also on the stick you installed with, in <span class="mono">june-logs/update-token.txt</span>.</p><div style="height:12px"></div>`;
+      `<p class="note">Easiest: on the oven, open the <b>Project July</b> tile and scan its QR code, or type the code it shows. The full password is also on the stick you installed with, in <span class="mono">june-logs/update-token.txt</span>.</p><div style="height:12px"></div>`;
   }
   html += `<ol class="steps">` +
     `<li class="${cls(1)}"><span class="n">${step > 1 ? '✓' : '1'}</span><div><b>Check for an update</b>` +

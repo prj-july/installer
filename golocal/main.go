@@ -51,6 +51,8 @@ type Config struct {
 	UpdatePersistentFile string
 	Updater              *Updater
 	ReportURL            string
+	SettingsFile         string // tiny persisted settings file for /local's phone-page toggle
+	LocalSettings        *localSettingsStore
 }
 
 var (
@@ -143,7 +145,12 @@ func main() {
 	// this only observes it; the status page turns a missing row into a red
 	// "identity-missing" problem.
 	initOvenIdentity(cfg)
+	installDNSResolver()
+	cfg.LocalSettings = newLocalSettingsStore(cfg.SettingsFile)
 	cfg.Updater = createUpdater(cfg)
+	if cfg.LocalSettings.Get().LocalUIDisabled {
+		logLine("[init] /local phone page is disabled in %s; the oven's Updates screen can turn it back on", cfg.SettingsFile)
+	}
 
 	if _, err := os.Stat(cfg.Cert); err != nil {
 		log.Fatalf("missing cert: %s", cfg.Cert)
@@ -268,6 +275,7 @@ func parseFlags() *Config {
 	flag.StringVar(&cfg.UpdateTokenFile, "update-token-file", "/data/june/updates/control-token", "per-install wireless update control token")
 	flag.StringVar(&cfg.UpdatePersistentFile, "update-persistent-record", "/system/etc/june/chef_update.json", "release metadata retained beside the persistent Chef APK")
 	flag.StringVar(&cfg.ReportURL, "report-url", defaultReportURL, "where \"Send report\" on /local posts bug reports")
+	flag.StringVar(&cfg.SettingsFile, "settings-file", defaultSettingsFile, "persisted settings (the /local phone-page toggle)")
 	flag.Parse()
 	return cfg
 }

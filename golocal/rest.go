@@ -112,6 +112,15 @@ func handleREST(hub *Hub, cfg *Config, w http.ResponseWriter, r *http.Request) {
 		return m
 	}
 
+	// The phone-facing /local page can be turned off from the oven's Updates
+	// screen. Loopback stays exempt so the oven can always turn it back on.
+	// The status/cook/report JSON and the sign-in/update routes are not gated:
+	// Home Assistant, reports and the one-time phone sign-in keep working.
+	if r.Method == http.MethodGet && (path == "/local" || path == "/local/") && localUIPhonesBlocked(cfg, r) {
+		serveLocalUIDisabled(w, r)
+		return
+	}
+
 	// Human/phone-friendly local-mode verification. Normalize the trailing slash
 	// so /local/ does not fall through to the oven REST catch-all below.
 	if r.Method == http.MethodGet && (path == "/local/" || path == "/local/status/" || path == "/local/ca.crt/") {

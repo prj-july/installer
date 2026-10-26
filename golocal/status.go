@@ -182,7 +182,9 @@ type NetworkStatus struct {
 	HTTPPort        int      `json:"http_port,omitempty"`
 	HostsOverrides  bool     `json:"hosts_overrides"`
 	DNS             []string `json:"dns,omitempty"`
+	DNSSource       string   `json:"dns_source,omitempty"`
 	Gateway         string   `json:"gateway,omitempty"`
+	CABundle        string   `json:"ca_bundle,omitempty"`
 	HAClientVersion string   `json:"ha_client_version,omitempty"`
 }
 
@@ -547,13 +549,17 @@ func networkStatus(cfg *Config) NetworkStatus {
 	}
 	hosts, _ := os.ReadFile("/system/etc/hosts")
 	n.HostsOverrides = strings.Contains(string(hosts), "api.junelife.com") && strings.Contains(string(hosts), "messaging.junelife.com")
-	if b, err := os.ReadFile("/etc/resolv.conf"); err == nil {
-		for _, line := range strings.Split(string(b), "\n") {
-			f := strings.Fields(line)
-			if len(f) == 2 && f[0] == "nameserver" {
-				n.DNS = append(n.DNS, f[1])
-			}
+	d := discoverDNS()
+	n.DNS = d.Servers
+	n.DNSSource = d.Source
+	if count, gts := caBundleInfo(); count > 0 {
+		n.CABundle = fmt.Sprintf("embedded (%d certs", count)
+		if gts {
+			n.CABundle += ", GTS Root R4"
 		}
+		n.CABundle += ")"
+	} else {
+		n.CABundle = "missing"
 	}
 	n.Gateway = defaultGateway()
 	n.HAClientVersion = lastHAVersion()
@@ -635,6 +641,16 @@ func buildProblems(d StatusData) []Problem {
 	var out []Problem
 	add := func(sev, id, title, detail, fix string) {
 		out = append(out, Problem{Severity: sev, ID: id, Title: title, Detail: detail, Fix: fix})
+	}
+	if len(d.Network.DNS) == 0 {
+		add("red", "update-dns", "The updater has no DNS resolver",
+			"Android 5 has no /etc/resolv.conf, so the static Go updater cannot resolve downloads.project-july.org. Resolver discovery did not find net.dns1..4, dhcp.*.dnsN, or a default gateway; wireless update checks will fail until the oven has a DNS server.",
+			"Give the oven a working DNS server (join Wi-Fi/Ethernet with DNS, or set DNS on the router), then run Check for update again.")
+	}
+	if d.Network.CABundle == "missing" {
+		add("red", "update-roots", "The updater has no CA bundle",
+			"The embedded CA bundle is missing or unreadable, so HTTPS fetches from downloads.project-july.org cannot verify the release server.",
+			"Reinstall from the current USB image (the bundle is compiled into june-local), then run Check for update again.")
 	}
 	if !d.Cert.CAInSystemStore && strings.Contains(d.Cert.Issuer, "*.junelife.com") {
 		add("red", "cert-untrusted", "Oven does not trust the served certificate",

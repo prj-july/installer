@@ -17,6 +17,9 @@ body{color:#f4f4f5;font:400 20px/1.35 "Barlow Semi Condensed","Barlow",sans-seri
   background:#08090b;background:linear-gradient(180deg,#08090b,#0f1115)}
 .wrap{display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;min-height:100%;padding:20px 24px 14px}
 .top{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;margin-bottom:16px}
+.top .ver{margin-left:auto;text-align:right;max-width:46%}
+.ver b{display:block;font:500 19px/1.2 "Barlow Semi Condensed",sans-serif;word-wrap:break-word}
+.ver .build{font-size:13px;line-height:1.25;word-wrap:break-word}
 .mark{width:40px;height:40px;color:#f89a4e;fill:#f89a4e;margin-right:12px;-webkit-filter:drop-shadow(0 0 6px rgba(255,106,26,.55));filter:drop-shadow(0 0 6px rgba(255,106,26,.55))}
 .eyebrow{font:600 14px/1.2 "Barlow Semi Condensed",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#a1a1aa}
 .top b{display:block;font:500 22px/1.2 "Barlow Semi Condensed",sans-serif}
@@ -50,10 +53,18 @@ h2{font:600 15px/1.2 "Barlow Semi Condensed",sans-serif;letter-spacing:.12em;tex
 .phone .txt{-webkit-flex:1;flex:1;min-width:0}
 .small{font-size:17px}
 .foot{margin-top:12px;font-size:14px;color:#a1a1aa}
+.access{margin-top:16px;padding:14px 20px}
+.access h2{margin-bottom:4px}
+.access .state{margin:0}
+.access .btn{min-height:52px;font-size:19px;line-height:52px;margin-top:8px}
+.access .notice{margin-top:10px}
 @media (max-width:900px),(max-height:520px){
   body{font-size:18px}
   .wrap{padding:14px 16px 10px}
   .top{margin-bottom:10px}
+  .top .ver{max-width:42%}
+  .ver b{font-size:17px}
+  .ver .build{font-size:12px}
   .release{font-size:36px}
   .card{padding:16px}
   .qr{width:160px;height:160px;padding:8px;margin-right:14px}
@@ -70,12 +81,14 @@ h2{font:600 15px/1.2 "Barlow Semi Condensed",sans-serif;letter-spacing:.12em;tex
   <div class="top">
     <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><path fill-rule="evenodd" d="M11 12H53A7 7 0 0 1 60 19V41A7 7 0 0 1 53 48H11A7 7 0 0 1 4 41V19A7 7 0 0 1 11 12ZM13.25 16.5H50.75A1.25 1.25 0 0 1 52 17.75V17.75A1.25 1.25 0 0 1 50.75 19H13.25A1.25 1.25 0 0 1 12 17.75V17.75A1.25 1.25 0 0 1 13.25 16.5ZM13.5 23H50.5A3.5 3.5 0 0 1 54 26.5V39.5A3.5 3.5 0 0 1 50.5 43H13.5A3.5 3.5 0 0 1 10 39.5V26.5A3.5 3.5 0 0 1 13.5 23Z"/><path d="M46.25 28.5H50.25A1.25 1.25 0 0 1 51.5 29.75V39.25A1.25 1.25 0 0 1 50.25 40.5H46.25A1.25 1.25 0 0 1 45 39.25V29.75A1.25 1.25 0 0 1 46.25 28.5ZM10.5 48H16.5A1.5 1.5 0 0 1 18 49.5V50A1.5 1.5 0 0 1 16.5 51.5H10.5A1.5 1.5 0 0 1 9 50V49.5A1.5 1.5 0 0 1 10.5 48ZM47.5 48H53.5A1.5 1.5 0 0 1 55 49.5V50A1.5 1.5 0 0 1 53.5 51.5H47.5A1.5 1.5 0 0 1 46 50V49.5A1.5 1.5 0 0 1 47.5 48Z"/></svg>
     <div><span class="eyebrow">Project July</span><b>Updates</b></div>
+    <div class="ver"><span class="eyebrow">June Local</span><b>{{VERSION}}</b><span class="dim build">commit {{COMMIT}}<br>built {{BUILD}}</span></div>
   </div>
   <div class="cols">
     <div class="col"><div class="card" id="software"><h2>Software</h2><p class="release">…</p><p class="state">Loading…</p></div></div>
     <div class="col"><div class="card" id="phone"><h2>Update from your phone</h2><p class="dim">Loading…</p></div></div>
   </div>
-  <div class="foot">June Local {{VERSION}}</div>
+  <div class="card access" id="access"><h2>Phone access to /local</h2><p class="state">Loading…</p></div>
+  <div class="foot">June Local {{VERSION}} · commit {{COMMIT}} · built {{BUILD}}</div>
 </div>
 <script>
 (function () {
@@ -83,6 +96,7 @@ h2{font:600 15px/1.2 "Barlow Semi Condensed",sans-serif;letter-spacing:.12em;tex
   var confirming = ''; // 'stage' or 'restore' while the in-page confirm shows
   var busy = '';       // the action being sent
   var message = null;  // {text, bad}
+  var access = { disabled: false, loaded: false, confirming: false, busy: false, message: null };
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -92,18 +106,19 @@ h2{font:600 15px/1.2 "Barlow Semi Condensed",sans-serif;letter-spacing:.12em;tex
   }
   function mb(n) { return n ? (n / 1e6).toFixed(1) + ' MB' : ''; }
 
-  function request(method, url, done) {
+  function request(method, url, body, done) {
     var x = new XMLHttpRequest();
     x.open(method, url, true);
     x.setRequestHeader('Cache-Control', 'no-store');
+    if (body != null) x.setRequestHeader('Content-Type', 'application/json');
     x.timeout = method === 'POST' ? 20 * 60 * 1000 : 15000;
     x.onreadystatechange = function () {
       if (x.readyState !== 4) return;
-      var body = null;
-      try { body = JSON.parse(x.responseText); } catch (e) { body = null; }
-      done(x.status, body || {});
+      var parsed = null;
+      try { parsed = JSON.parse(x.responseText); } catch (e) { parsed = null; }
+      done(x.status, parsed || {});
     };
-    x.send(method === 'POST' ? '' : null);
+    x.send(body == null ? null : body);
   }
 
   function stateLine(u) {
@@ -167,7 +182,7 @@ h2{font:600 15px/1.2 "Barlow Semi Condensed",sans-serif;letter-spacing:.12em;tex
     if (action === 'ask-restore') { confirming = 'restore'; message = null; renderSoftware(); return; }
     if (action === 'cancel') { confirming = ''; renderSoftware(); return; }
     busy = action; message = null; renderSoftware();
-    request('POST', '/local/oven/update/' + action, function (code, body) {
+    request('POST', '/local/oven/update/' + action, null, function (code, body) {
       busy = ''; confirming = '';
       if (body.update) status = body.update;
       if (code === 200 && body.success) {
@@ -189,14 +204,14 @@ h2{font:600 15px/1.2 "Barlow Semi Condensed",sans-serif;letter-spacing:.12em;tex
 
   function poll() {
     if (busy) return;
-    request('GET', '/local/update', function (code, body) {
+    request('GET', '/local/update', null, function (code, body) {
       if (code === 200 && body.update && !busy) { status = body.update; renderSoftware(); }
       else if (!status) { status = { enabled: false }; renderSoftware(); }
     });
   }
 
   function loadSignin() {
-    request('GET', '/local/oven/signin', function (code, body) {
+    request('GET', '/local/oven/signin', null, function (code, body) {
       var html = '<h2>Update from your phone</h2>';
       if (code === 200 && body.success && body.qr_svg) {
         var mins = Math.max(1, Math.round((body.expires_in || 600) / 60));
@@ -204,7 +219,8 @@ h2{font:600 15px/1.2 "Barlow Semi Condensed",sans-serif;letter-spacing:.12em;tex
           '<div class="dim small">Address</div><p class="addr">' + esc(body.address) + '</p>' +
           '<div class="dim small">Code</div><p class="code">' + esc(body.code) + '</p></div></div>' +
           '<p class="dim small">Scan with your phone’s camera, or open the address and enter the code. The code works once and expires in ' +
-          mins + ' min.</p>';
+          mins + ' min.</p>' +
+          (access.disabled ? '<p class="dim small">Phone access is off. Turn it back on below before a phone can open /local.</p>' : '');
       } else {
         html += '<div class="notice">' + esc(body.error || 'The phone code isn’t available right now.') + '</div>';
       }
@@ -212,8 +228,74 @@ h2{font:600 15px/1.2 "Barlow Semi Condensed",sans-serif;letter-spacing:.12em;tex
     });
   }
 
+  function renderAccess() {
+    var html = '<h2>Phone access to /local</h2>';
+    if (!access.loaded) {
+      html += '<p class="state">Loading…</p>';
+    } else if (access.busy) {
+      html += '<p class="state">Saving…</p>';
+    } else if (access.confirming) {
+      html += '<div class="notice warn"><b>Turn off phone access?</b>Phones on your network will no longer open /local. You can turn it back on here.</div>' +
+        '<div class="row"><button class="btn ghost" data-access="cancel">Keep it on</button>' +
+        '<button class="btn ember" data-access="disable">Turn off</button></div>';
+    } else if (access.disabled) {
+      html += '<p class="state warn">Off. Phones can’t open /local. The oven’s Updates screen still works.</p>' +
+        '<button class="btn ember" data-access="enable">Turn phone access back on</button>';
+    } else {
+      html += '<p class="state ok">On. Phones on your network can open /local with the update password or a code.</p>' +
+        '<button class="btn ghost" data-access="ask-disable">Turn off phone access</button>';
+    }
+    if (access.message) html += '<div class="notice' + (access.message.bad ? ' bad' : '') + '">' + esc(access.message.text) + '</div>';
+    $('access').innerHTML = html;
+  }
+
+  function saveAccess(disabled) {
+    access.busy = true; access.confirming = false; access.message = null;
+    renderAccess();
+    request('POST', '/local/oven/settings', JSON.stringify({ local_ui_disabled: disabled }), function (code, body) {
+      access.busy = false;
+      if (code === 200 && body.settings) {
+        access.disabled = !!body.settings.local_ui_disabled;
+        access.loaded = true;
+        access.message = { text: access.disabled
+          ? 'Phone access is off. Only the oven can turn it back on.'
+          : 'Phone access is back on.', bad: false };
+      } else {
+        access.message = { text: body.error || (code ? 'The oven answered ' + code + '.' : 'June Local did not answer.'), bad: true };
+      }
+      renderAccess();
+      loadSignin();
+    });
+  }
+
+  function loadAccess() {
+    request('GET', '/local/oven/settings', null, function (code, body) {
+      access.loaded = true;
+      if (code === 200 && body.settings) {
+        access.disabled = !!body.settings.local_ui_disabled;
+      } else {
+        access.message = { text: body.error || 'The phone-access setting isn’t available.', bad: true };
+      }
+      renderAccess();
+      if (access.disabled) loadSignin();
+    });
+  }
+
+  $('access').onclick = function (e) {
+    var t = e.target;
+    while (t && t !== this && !t.getAttribute('data-access')) t = t.parentNode;
+    if (!t || t === this || t.disabled) return;
+    var a = t.getAttribute('data-access');
+    if (a === 'ask-disable') { access.confirming = true; access.message = null; renderAccess(); return; }
+    if (a === 'cancel') { access.confirming = false; renderAccess(); return; }
+    if (a === 'enable') saveAccess(false);
+    else if (a === 'disable') saveAccess(true);
+  };
+
   poll();
   loadSignin();
+  renderAccess();
+  loadAccess();
   setInterval(poll, 4000);
   setInterval(loadSignin, 60000);
 })();
