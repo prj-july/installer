@@ -343,17 +343,23 @@ func lightStatusSnapshot() LightStatus {
 	return lightLast
 }
 
-// startStatusRefresher builds the expensive snapshot once and then keeps it
-// fresh on a slow ticker.  Cheap live state is merged in currentStatus.
-func startStatusRefresher(hub *Hub, cfg *Config) {
+var (
+	statusRefreshMu   sync.Mutex
+	statusRefreshedAt time.Time
+)
+
+// ensureFreshStatus rebuilds the expensive snapshot (file stats, cert parse,
+// the accounts.db probe) only when a reader asks for it and the last build is
+// older than statusRefreshInterval.  Nothing runs while nobody reads /local or
+// /local/status.  Cheap live state is merged in currentStatus.
+func ensureFreshStatus(hub *Hub, cfg *Config) {
+	statusRefreshMu.Lock()
+	defer statusRefreshMu.Unlock()
+	if !statusRefreshedAt.IsZero() && time.Since(statusRefreshedAt) < statusRefreshInterval {
+		return
+	}
 	refreshStatus(hub, cfg)
-	go func() {
-		t := time.NewTicker(statusRefreshInterval)
-		defer t.Stop()
-		for range t.C {
-			refreshStatus(hub, cfg)
-		}
-	}()
+	statusRefreshedAt = time.Now()
 }
 
 func currentStatus(hub *Hub, cfg *Config) StatusData {
