@@ -5,80 +5,209 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>June Local {{INSTALLER_VERSION}} · server {{VERSION}}</title>
 <style>
-:root{--bg:#07090d;--card:#11161f;--line:#222b3a;--text:#e6edf7;--dim:#8fa0b8;--ok:#34d399;--amber:#fbbf24;--red:#f87171;--accent:#38bdf8}
+/* Same type and tokens as the June USB installer (installer/liveiso/gui/web/app.css), so the
+   oven, the stick, the app and the HA card read as one product. */
+@font-face{font-family:"Barlow Semi Condensed";font-weight:400;src:url(/local/fonts/BarlowSemiCondensed-Regular.ttf) format("truetype");font-display:swap}
+@font-face{font-family:"Barlow Semi Condensed";font-weight:500;src:url(/local/fonts/BarlowSemiCondensed-Medium.ttf) format("truetype");font-display:swap}
+@font-face{font-family:"Barlow Semi Condensed";font-weight:600;src:url(/local/fonts/BarlowSemiCondensed-SemiBold.ttf) format("truetype");font-display:swap}
+@font-face{font-family:"Barlow Condensed";font-weight:300;src:url(/local/fonts/BarlowCondensed-Light.ttf) format("truetype");font-display:swap}
+:root{
+  --f:"Barlow Semi Condensed","Barlow",system-ui,sans-serif;--fn:"Barlow Condensed","Barlow",system-ui,sans-serif;
+  --fm:ui-monospace,"DejaVu Sans Mono",Menlo,Consolas,monospace;
+  --bg:#08090b;--bg2:#0f1115;--fg:#f4f4f5;--fg2:#a1a1aa;--line:rgba(255,255,255,.10);
+  --ember:#ff7a2e;--ember2:#ffb04a;--glow:rgba(255,106,26,.55);--gglow:rgba(255,106,26,.75);
+  --green:#4ade80;--amber:#fbbf24;--red:#f87171;--focus:#7cc4f2;--hw:300;
+  --btn:#f4f4f5;--btnfg:#0a0a0b;
+  --tA:#1d1210;--tB:#2e1511;--tRim:rgba(255,122,64,.36);--tGlow:rgba(255,86,24,.34);--tSheen:rgba(255,255,255,.07);
+  --uA:#191a1d;--uB:#24262a;--uRim:rgba(255,255,255,.16);
+  --panel:rgba(255,255,255,.035);--field:#0b0c0f;--brand:#f89a4e;
+  --warnBg:rgba(251,191,36,.08);--badBg:rgba(248,113,113,.09);--okBg:rgba(74,222,128,.08);
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:light){:root{
+  --bg:#ffffff;--bg2:#f7f7f5;--fg:#18181b;--fg2:#5b5f66;--line:rgba(0,0,0,.10);
+  --ember:#d9480f;--ember2:#f08a3c;--glow:transparent;--gglow:rgba(240,122,42,0);
+  --green:#15803d;--amber:#b45309;--red:#b91c1c;--focus:#1f6fb2;--hw:400;
+  --btn:#18181b;--btnfg:#ffffff;
+  --tA:#fbf7f4;--tB:#f5e9e2;--tRim:rgba(217,72,15,.26);--tGlow:rgba(240,122,42,.16);--tSheen:rgba(255,255,255,.7);
+  --uA:#f6f6f7;--uB:#ececee;--uRim:rgba(0,0,0,.12);
+  --panel:rgba(0,0,0,.025);--field:#ffffff;--brand:#b23c0d;
+  --warnBg:rgba(180,83,9,.07);--badBg:rgba(185,28,28,.06);--okBg:rgba(21,128,61,.07);
+  color-scheme:light;
+}}
 *{box-sizing:border-box}
-body{margin:0;background:radial-gradient(1200px 600px at 50% -200px,#152035,var(--bg));color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-main{max-width:880px;margin:0 auto;padding:28px 18px 60px}
-header{display:flex;gap:14px;align-items:center;margin-bottom:22px}
-.dot{width:16px;height:16px;border-radius:50%;background:var(--ok);box-shadow:0 0 12px var(--ok);flex:none}
-.dot.amber{background:var(--amber);box-shadow:0 0 12px var(--amber)}
-.dot.red{background:var(--red);box-shadow:0 0 12px var(--red)}
-h1{font-size:24px;margin:0}
-.sub{color:var(--dim);margin:2px 0 0;font-size:13px}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:18px 0}
-.tile{background:linear-gradient(180deg,#141b26,#0f141d);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
-.tile .k{color:var(--dim);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
-.tile .v{font-size:19px;font-weight:650;margin-top:4px}
-.tile .s{color:var(--dim);font-size:12px;margin-top:2px}
-details{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:0 14px;margin:10px 0}
-summary{cursor:pointer;padding:12px 2px;font-weight:600;list-style:none}
-summary::-webkit-details-marker{display:none}
-summary:after{content:"▾";float:right;color:var(--dim)}
-details[open] summary:after{content:"▴"}
-.body{padding:2px 2px 14px;color:var(--dim)}
-.row{display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px dashed #1c2431}
-.row:last-child{border-bottom:none}
-.row b{color:var(--text);font-weight:600}
-.ok{color:var(--ok)}.amber{color:var(--amber)}.red{color:var(--red)}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
-.prob{border-left:3px solid var(--amber);background:#1a1608;padding:10px 12px;border-radius:8px;margin:8px 0;color:var(--text)}
-.prob.red{border-color:var(--red);background:#1c0f10}
-.prob .fix{color:var(--dim);font-size:13px;margin-top:4px}
-footer{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:26px;color:var(--dim);font-size:13px}
-footer a{color:var(--accent);text-decoration:none}
-button{background:#13202f;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer}
-button.primary{background:#0b4a67;border-color:#16779e}
-button:disabled{cursor:not-allowed;opacity:.48}
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.field{display:block;margin:10px 0}.field span{display:block;color:var(--text);font-weight:600;margin-bottom:5px}
-.field input,.field textarea{width:100%;background:#090d13;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:13px ui-monospace,SFMono-Regular,Menlo,monospace}
-.notice{border:1px solid #24506a;background:#0b1b26;color:var(--text);border-radius:8px;padding:10px 12px;margin:10px 0}
-.notice.bad{border-color:#6b2227;background:#1c0f10}
-.report{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:18px 0 0}
-.report h2{font-size:16px;margin:0 0 4px}.report p{color:var(--dim);margin:0;font-size:13px}
-.field textarea{font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:72px;resize:vertical}
-noscript{display:block;background:#1a1608;border:1px solid #4a3b12;padding:12px;border-radius:10px}
+html,body{margin:0}
+body{font:400 17px/1.45 var(--f);color:var(--fg);-webkit-font-smoothing:antialiased;min-height:100vh;
+  background:linear-gradient(112deg,transparent 0 66%,rgba(255,255,255,.018) 66.3%,transparent 80%),linear-gradient(180deg,var(--bg),var(--bg2));background-attachment:fixed}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+a{color:var(--ember2)}
+main{max-width:980px;margin:0 auto;padding:24px 16px 64px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{width:40px;height:40px;flex:none;color:var(--brand);filter:drop-shadow(0 0 6px var(--glow))}
+.eyebrow{font:600 13px/1.2 var(--f);letter-spacing:.12em;text-transform:uppercase;color:var(--fg2)}
+.brand b{display:block;font:500 19px/1.2 var(--f);color:var(--fg)}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;font:600 13px/1 var(--f);letter-spacing:.1em;text-transform:uppercase;box-shadow:inset 0 0 0 1px currentColor}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}
+.ok{color:var(--green)}.amber{color:var(--amber)}.red{color:var(--red)}.dim{color:var(--fg2)}
+h1{font:var(--hw) clamp(38px,6vw,60px)/1.02 var(--fn);margin:22px 0 6px;letter-spacing:-.005em}
+.sub{color:var(--fg2);margin:0;font-size:15px}
+h2{font:500 24px/1.2 var(--f);margin:0 0 6px}
+h3{font:600 13px/1.2 var(--f);letter-spacing:.1em;text-transform:uppercase;color:var(--fg2);margin:18px 0 8px}
+p{margin:0 0 10px}
+.problems{display:flex;flex-direction:column;gap:10px;margin:20px 0 0}
+.prob{color:var(--fg);border-radius:14px;padding:14px 16px;background:var(--warnBg);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--amber) 45%,transparent);display:flex;gap:14px;align-items:flex-start;justify-content:space-between}
+.prob.red{background:var(--badBg);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--red) 45%,transparent)}
+.prob b{display:block;font-weight:600;color:var(--amber)}
+.prob.red b{color:var(--red)}
+.prob .fix{color:var(--fg2);font-size:15px;margin-top:4px}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:22px 0 0}
+.tile{position:relative;border:0;text-align:left;display:flex;flex-direction:column;gap:4px;min-height:132px;padding:16px;border-radius:18px;color:var(--fg);
+  background:linear-gradient(180deg,var(--uA),var(--uB));box-shadow:inset 0 0 0 1px var(--uRim)}
+.tile .k{font:600 13px/1.2 var(--f);letter-spacing:.1em;text-transform:uppercase;color:var(--fg2)}
+.tile .v{font:500 22px/1.15 var(--f);margin-top:auto}
+.tile .s{font-size:15px;color:var(--fg2);line-height:1.3}
+.tile.act{background:radial-gradient(120% 75% at 50% 100%,var(--tGlow),transparent 62%),linear-gradient(180deg,var(--tA),var(--tB));box-shadow:inset 0 0 0 1px var(--tRim),inset 0 1px 0 var(--tSheen);transition:transform .12s ease,box-shadow .12s ease}
+.tile.act:hover{transform:translateY(-2px);box-shadow:inset 0 0 0 1px var(--ember),inset 0 1px 0 var(--tSheen),0 8px 28px -12px var(--glow)}
+.tile.act .go{font:600 15px/1 var(--f);color:var(--ember2);margin-top:6px}
+.tile .tag{position:absolute;top:14px;right:14px;padding:4px 8px;border-radius:6px;font:700 11px/1 var(--f);letter-spacing:.08em;text-transform:uppercase;background:rgba(255,122,46,.16);color:var(--ember2);box-shadow:inset 0 0 0 1px var(--tRim)}
+.tabs{display:flex;gap:4px;margin:28px 0 0;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line)}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;position:relative;border:0;background:none;padding:12px 14px;font:500 17px/1 var(--f);color:var(--fg2);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:var(--fg)}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--ember)}
+.tab .badge{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:6px;vertical-align:3px;background:currentColor}
+.panel{padding:18px 2px 0}
+.rows{border-radius:16px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);padding:4px 16px}
+.row{display:flex;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row>span{color:var(--fg2)}
+.row b{font-weight:500;text-align:right;overflow-wrap:anywhere}
+.mono{font-family:var(--fm);font-size:13px}
+.note{color:var(--fg2);font-size:15px;margin:12px 2px 0}
+.notice{border-radius:12px;padding:12px 14px;margin:12px 0 0;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);font-size:15px}
+.notice.bad{background:var(--badBg);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--red) 45%,transparent)}
+.notice.good{background:var(--okBg);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--green) 45%,transparent)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 22px;border:0;border-radius:12px;background:var(--btn);color:var(--btnfg);font:600 17px/1 var(--f);white-space:nowrap;text-decoration:none}
+.btn.ghost{background:transparent;color:var(--fg);box-shadow:inset 0 0 0 1px var(--line)}
+.btn.ghost:hover{box-shadow:inset 0 0 0 1px var(--fg2)}
+.btn.ember{background:linear-gradient(90deg,var(--ember),var(--ember2));color:#160a04;box-shadow:0 0 18px -4px var(--glow)}
+.btn:disabled{opacity:.35;cursor:default}
+.actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:14px}
+.notice+.steps{margin-top:12px}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.step{display:grid;grid-template-columns:36px minmax(0,1fr);gap:14px;padding:16px;border-radius:16px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line)}
+.step.now{background:radial-gradient(120% 90% at 0% 100%,var(--tGlow),transparent 60%),linear-gradient(180deg,var(--tA),var(--tB));box-shadow:inset 0 0 0 1px var(--tRim),inset 0 1px 0 var(--tSheen)}
+.step .n{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font:600 17px/1 var(--f);box-shadow:inset 0 0 0 1px var(--line);color:var(--fg2)}
+.step.now .n{background:linear-gradient(90deg,var(--ember),var(--ember2));color:#160a04;box-shadow:none}
+.step.done .n{color:var(--green);box-shadow:inset 0 0 0 1px currentColor}
+.step b{display:block;font:500 19px/1.25 var(--f)}
+.step .d{color:var(--fg2);font-size:15px;margin-top:2px}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0 0}
+.card{padding:16px;border-radius:16px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line)}
+.card b{display:block;font:500 19px/1.25 var(--f)}
+.card .d{color:var(--fg2);font-size:15px;margin-top:4px}
+label.btn{cursor:pointer}label.btn.off{opacity:.35;cursor:default}
+.field{display:block;margin:14px 0 0}
+.field>span{display:block;font:600 13px/20px var(--f);letter-spacing:.07em;text-transform:uppercase;color:var(--fg2);margin-bottom:6px}
+.field input,.field textarea{width:100%;border:0;outline:none;border-radius:12px;background:var(--field);box-shadow:inset 0 0 0 1px var(--line);padding:12px 14px;font:400 17px/1.45 var(--f)}
+.field input{height:52px}
+.field input:focus,.field textarea:focus{box-shadow:inset 0 0 0 1px var(--ember)}
+.field textarea{min-height:200px;resize:vertical}
+.report{margin:34px 0 0;padding:22px;border-radius:20px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line)}
+.report .lead{color:var(--fg2)}
+.cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:22px}
+.lists{display:grid;gap:12px;align-content:start}
+.lists ul{margin:0;padding:0 0 0 18px;color:var(--fg2);font-size:15px}
+.lists li{margin:2px 0}
+.lists .in h3{color:var(--green)}
+.lists .out h3{color:var(--red)}
+.check{display:flex;gap:10px;align-items:flex-start;margin:14px 0 0;font-size:15px;color:var(--fg2)}
+.check input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--ember)}
+.linkbtn{border:0;background:none;padding:0;color:var(--ember2);font:500 15px/1.4 var(--f);text-decoration:underline;text-underline-offset:3px}
+pre.preview{max-height:360px;overflow:auto;margin:12px 0 0;padding:12px 14px;border-radius:12px;background:var(--field);box-shadow:inset 0 0 0 1px var(--line);font:12px/1.5 var(--fm);white-space:pre-wrap;overflow-wrap:anywhere}
+.sent{display:flex;flex-direction:column;gap:6px}
+.sent .code{font:500 28px/1.1 var(--fm);color:var(--ember2)}
+footer{display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;margin-top:34px;padding-top:18px;border-top:1px solid var(--line);font-size:15px}
+footer a,footer .linkbtn{color:var(--fg2)}
+footer a:hover,footer .linkbtn:hover{color:var(--fg)}
+noscript{display:block;margin-top:16px;padding:12px 14px;border-radius:12px;background:var(--warnBg)}
+@media (max-width:760px){
+  .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cols,.cards{grid-template-columns:minmax(0,1fr)}
+  .prob{flex-direction:column}
+  .report{padding:16px}
+  .row{flex-direction:column;gap:2px}.row b{text-align:left}
+}
 </style>
 </head>
 <body>
 <main>
-<header>
-  <div class="dot {{HEADLINE_CLASS}}" id="dot"></div>
-  <div><h1 id="headline">{{HEADLINE}}</h1><p class="sub" id="subline">June Local {{INSTALLER_VERSION}} · server {{VERSION}}</p></div>
-</header>
+<div class="top">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 64 64" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M11 12H53A7 7 0 0 1 60 19V41A7 7 0 0 1 53 48H11A7 7 0 0 1 4 41V19A7 7 0 0 1 11 12ZM13.25 16.5H50.75A1.25 1.25 0 0 1 52 17.75V17.75A1.25 1.25 0 0 1 50.75 19H13.25A1.25 1.25 0 0 1 12 17.75V17.75A1.25 1.25 0 0 1 13.25 16.5ZM13.5 23H50.5A3.5 3.5 0 0 1 54 26.5V39.5A3.5 3.5 0 0 1 50.5 43H13.5A3.5 3.5 0 0 1 10 39.5V26.5A3.5 3.5 0 0 1 13.5 23Z"/><path d="M46.25 28.5H50.25A1.25 1.25 0 0 1 51.5 29.75V39.25A1.25 1.25 0 0 1 50.25 40.5H46.25A1.25 1.25 0 0 1 45 39.25V29.75A1.25 1.25 0 0 1 46.25 28.5ZM10.5 48H16.5A1.5 1.5 0 0 1 18 49.5V50A1.5 1.5 0 0 1 16.5 51.5H10.5A1.5 1.5 0 0 1 9 50V49.5A1.5 1.5 0 0 1 10.5 48ZM47.5 48H53.5A1.5 1.5 0 0 1 55 49.5V50A1.5 1.5 0 0 1 53.5 51.5H47.5A1.5 1.5 0 0 1 46 50V49.5A1.5 1.5 0 0 1 47.5 48Z"/></svg>
+    <div><span class="eyebrow">June Local</span><b id="oven-name">Your oven</b></div>
+  </div>
+  <span class="pill {{HEADLINE_CLASS}}" id="pill">Status</span>
+</div>
+<h1 id="headline">{{HEADLINE}}</h1>
+<p class="sub" id="subline">June Local {{INSTALLER_VERSION}} · server {{VERSION}}</p>
 <noscript>
-  <p><b>June Local {{INSTALLER_VERSION}} · server {{VERSION}}</b>. JavaScript is off, so this page shows a summary only.
-  <a href="/local/status">Open the status JSON</a> or <a href="/local/ca.crt">download the CA</a>.</p>
+  <b>June Local {{INSTALLER_VERSION}} · server {{VERSION}}</b>. JavaScript is off, so this page shows a summary only.
+  <a href="/local/status">Open the status JSON</a> or <a href="/local/ca.crt">download the CA</a>.
 </noscript>
+
+<section class="problems" id="problems"></section>
 <section class="tiles" id="tiles"></section>
-<section id="problems"></section>
-<section id="sections"></section>
+
+<nav class="tabs" id="tabs" role="tablist"></nav>
+<section id="panels"></section>
+
 <section class="report" id="report">
   <h2>Report a problem</h2>
-  <p>Sends your note and this page's diagnostics to Project July. Tokens, keys, serial numbers and account names are left out. <a href="/local/status" style="color:var(--accent)">See the diagnostics</a>.</p>
-  <label class="field"><span>What went wrong?</span><textarea id="report-note" maxlength="2000" placeholder="For example: the app says disconnected after a power cut"></textarea></label>
-  <label class="field"><span>Email for a reply (optional)</span><input id="report-contact" type="email" maxlength="200" autocomplete="email"></label>
-  <div class="actions"><button class="primary" type="button" id="report-send">Send report</button></div>
-  <div id="report-msg" class="notice" hidden></div>
+  <p class="lead">Tell us what happened. Your note goes to Project July together with this oven's diagnostics, so we can see what the oven saw.</p>
+  <div class="cols">
+    <div>
+      <label class="field"><span>What happened?</span><textarea id="report-note" maxlength="2000" placeholder="What were you doing, what did you expect, and what happened instead? For example: after a power cut the app says the oven is disconnected, but the oven screen looks normal."></textarea></label>
+      <label class="field"><span>Email for a reply (optional)</span><input id="report-contact" type="email" maxlength="200" autocomplete="email" placeholder="you@example.com"></label>
+      <label class="check"><input type="checkbox" id="report-logs" checked><span>Include the recent error lines from this oven. They help most with crashes and disconnects.</span></label>
+      <div class="actions">
+        <button class="btn ember" type="button" id="report-send">Send report</button>
+        <a class="btn ghost" id="report-mail" href="mailto:reports@project-july.org">Prepare an email instead</a>
+      </div>
+      <div id="report-msg" class="notice" hidden></div>
+    </div>
+    <div class="lists">
+      <div class="in"><h3>Included</h3><ul>
+        <li>Your note, and your email if you give one</li>
+        <li>June Local, installer and app versions</li>
+        <li>Connection, camera and update state</li>
+        <li>Certificate dates and names, network ports and addresses on your home network</li>
+        <li>The problems shown on this page</li>
+        <li id="report-logs-line">Recent error lines</li>
+      </ul></div>
+      <div class="out"><h3>Never included</h3><ul>
+        <li>Sign-in tokens, keys and passwords</li>
+        <li>The update password</li>
+        <li>The oven's serial number</li>
+        <li>June account name or email</li>
+        <li>Camera pictures or video</li>
+      </ul></div>
+      <button class="linkbtn" type="button" id="report-preview">See exactly what will be sent</button>
+    </div>
+  </div>
+  <pre class="preview" id="report-preview-body" hidden></pre>
 </section>
+
 <footer>
-  <button id="copy">Copy diagnostics</button>
+  <button class="linkbtn" id="copy" type="button">Copy diagnostics</button>
   <a href="/local/status" download="june-local-status.json">Download diagnostics</a>
   <a href="/local/cook.html">Cook view</a>
   <a href="/local/ca.crt">CA certificate</a>
   <a href="https://github.com/prj-july/installer/releases/tag/v{{INSTALLER_VERSION}}">Release notes</a>
   <a href="https://project-july.org/setup">Setup guide</a>
-  <a href="https://github.com/prj-july/installer">Repository</a>
   <a href="https://github.com/prj-july/installer/issues/new">Open a GitHub issue</a>
 </footer>
 </main>
@@ -92,79 +221,44 @@ const bytes = n => n > 1e9 ? (n/1e9).toFixed(1)+' GB' : (n > 1e6 ? (n/1e6).toFix
 let data = initial;
 const UPDATE_TOKEN_KEY = 'june-local-update-token';
 let updateToken = '';
-const userToggled = new Set();
 try { updateToken = sessionStorage.getItem(UPDATE_TOKEN_KEY) || ''; } catch (e) {}
 
-function tile(k, v, s, cls) { return `<div class="tile"><div class="k">${esc(k)}</div><div class="v ${cls||''}">${esc(v)}</div><div class="s">${esc(s)}</div></div>`; }
+const TABS = [
+  ['updates', 'Updates'], ['install', 'Install'], ['identity', 'Sign-in'], ['clients', 'Clients'],
+  ['camera', 'Camera'], ['network', 'Network'], ['cert', 'Certificate'], ['storage', 'Storage'], ['errors', 'Errors']
+];
+const PROBLEM_TAB = {
+  'oven-disconnected': 'network', 'identity-missing': 'identity', 'cert-untrusted': 'cert', 'cert-expiry': 'cert',
+  'cert-ip-mismatch': 'cert', 'factory-fallback': 'install', 'camera-bridge': 'camera', 'light-bridge': 'camera',
+  'storage-low': 'storage'
+};
+// The tab the reader picked stays picked across refreshes. Until they pick one, the page
+// opens the tab a problem points at, or Updates. /local#cert links straight to a tab.
+let activeTab = null, userPickedTab = false;
+// The installer's QR code opens /local#updates&pw=<password>. Browsers never send the
+// fragment, so the password reaches only this tab; keep it for the tab and wipe the URL.
+const hashParts = location.hash.slice(1).split('&');
+const fromHash = hashParts[0];
+const pw = (hashParts.find(p => p.startsWith('pw=')) || '').slice(3);
+if (/^[0-9a-f]{64}$/.test(pw)) {
+  updateToken = pw;
+  try { sessionStorage.setItem(UPDATE_TOKEN_KEY, pw); } catch (e) {}
+}
+if (hashParts.length > 1) { try { history.replaceState(null, '', location.pathname + (fromHash ? '#' + fromHash : '')); } catch (e) {} }
+if (TABS.some(t => t[0] === fromHash)) { activeTab = fromHash; userPickedTab = true; }
+
+function row(k, v, cls) { return `<div class="row"><span>${esc(k)}</span><b class="${cls||''}">${esc(v)}</b></div>`; }
+function rows(html) { return `<div class="rows">${html}</div>`; }
+
 function updateLabel(u) {
   const labels = {
-    'ready': 'Ready', 'checking': 'Checking', 'up-to-date': 'Up to date',
-    'update-available': 'Update available', 'staged': 'Reboot to apply',
-    'error': 'Update error', 'disabled': 'Updates unavailable'
+    'ready': 'Up to date', 'checking': 'Checking', 'up-to-date': 'Up to date',
+    'update-available': 'Update available', 'staged': 'Restart to finish',
+    'error': 'Update problem', 'disabled': 'Not set up'
   };
   return labels[u.state] || 'Unknown';
 }
-function updatesTone(u) {
-  if (u.state === 'error') return 'red';
-  if (u.state === 'update-available' || u.state === 'staged' || u.state === 'checking') return 'amber';
-  return u.enabled ? 'ok' : 'amber';
-}
-function updateSummary(u) {
-  if (u.pending && u.pending.release) return u.pending.release + ' staged';
-  if (u.available && u.available.release) return u.available.release + ' available';
-  if (u.current_release) return u.current_release + ' installed';
-  if (u.enabled) return 'signed HTTPS repository';
-  return u.last_error || 'install the updater config';
-}
-function syncUpdateToken() {
-  const input = $('update-token');
-  if (input && updateToken) input.value = updateToken;
-}
-function setUpdateMessage(text, bad) {
-  const el = $('update-msg');
-  if (!el) return;
-  el.hidden = !text;
-  el.className = 'notice' + (bad ? ' bad' : '');
-  el.textContent = text || '';
-}
-async function runUpdateAction(action) {
-  if (location.protocol !== 'https:') {
-    setUpdateMessage('Open this page over HTTPS before sending an update token.', true);
-    return;
-  }
-  const input = $('update-token');
-  const token = (input && input.value.trim()) || updateToken;
-  if (!token) {
-    setUpdateMessage('Enter the update control token printed by the installer.', true);
-    if (input) input.focus();
-    return;
-  }
-  if (action === 'stage' && !window.confirm('Stage this signed update for the next oven boot?')) return;
-  updateToken = token;
-  try { sessionStorage.setItem(UPDATE_TOKEN_KEY, token); } catch (e) {}
-  document.querySelectorAll('[data-update]').forEach(b => { b.disabled = true; });
-  setUpdateMessage(action === 'check' ? 'Checking the signed repository…' : 'Downloading and verifying the update…', false);
-  try {
-    const res = await fetch('/local/update/' + action, {
-      method: 'POST', cache: 'no-store',
-      headers: { 'X-June-Update-Token': token }
-    });
-    const reply = await res.json().catch(() => ({}));
-    if (reply.update) data.update = reply.update;
-    render(data);
-    if (!res.ok) throw new Error(reply.error || ('HTTP ' + res.status));
-    if (action === 'stage') {
-      setUpdateMessage('Update verified and staged. Power-cycle the oven when convenient to apply it.', false);
-    } else if (reply.update && reply.update.available) {
-      setUpdateMessage('A signed update is available. Stage it when you are ready.', false);
-    } else {
-      setUpdateMessage('This oven is up to date on its selected channel.', false);
-    }
-  } catch (err) {
-    render(data);
-    setUpdateMessage((err && err.message) || 'Update request failed.', true);
-  }
-}
+function updateNeedsYou(u) { return u.state === 'update-available' || u.state === 'staged' || u.state === 'error'; }
 function cookSub(c) {
   c = c || {};
   const bits = [];
@@ -174,34 +268,86 @@ function cookSub(c) {
     const m = Math.floor(c.remaining_seconds / 60), s = Math.round(c.remaining_seconds % 60);
     bits.push(m + ':' + String(s).padStart(2, '0') + ' left');
   }
-  if (!bits.length && c.state === 'idle' && c.last_cook) bits.push('previous: ' + (c.last_cook.mode || 'cook') + (c.last_cook.target_c ? ' ' + c.last_cook.target_c.toFixed(0) + ' °C' : ''));
-  return bits.join(' · ') || 'no active plan';
+  if (!bits.length && c.state === 'idle' && c.last_cook) bits.push('last: ' + (c.last_cook.mode || 'cook') + (c.last_cook.target_c ? ' ' + c.last_cook.target_c.toFixed(0) + ' °C' : ''));
+  return bits.join(' · ') || 'nothing in the oven';
 }
-function row(k, v, cls) { return `<div class="row"><span>${esc(k)}</span><b class="${cls||''}">${esc(v)}</b></div>`; }
-function details(id, title, body, open) { return `<details id="${id}" ${open?'open':''}><summary>${esc(title)}</summary><div class="body">${body}</div></details>`; }
+function tile(k, v, s, cls) {
+  return `<div class="tile"><span class="k">${esc(k)}</span><span class="v ${cls||''}">${esc(v)}</span><span class="s">${esc(s)}</span></div>`;
+}
+function updateTile(u) {
+  const avail = u.available || {}, pending = u.pending || {};
+  if (u.state === 'update-available' && avail.release) {
+    return `<button type="button" class="tile act" data-goto="updates"><span class="tag">Action</span><span class="k">Software</span>` +
+      `<span class="v">${esc(avail.release)} is ready</span><span class="s">Installed: ${esc(u.current_release || 'installer baseline')}</span>` +
+      `<span class="go">Review and install ›</span></button>`;
+  }
+  if (u.state === 'staged') {
+    return `<button type="button" class="tile act" data-goto="updates"><span class="tag">Action</span><span class="k">Software</span>` +
+      `<span class="v">Restart to finish</span><span class="s">${esc(pending.release || 'Update')} is downloaded and checked</span>` +
+      `<span class="go">What to do ›</span></button>`;
+  }
+  if (u.state === 'error') {
+    return `<button type="button" class="tile act" data-goto="updates"><span class="k">Software</span>` +
+      `<span class="v red">Update problem</span><span class="s">${esc(u.last_error || '')}</span><span class="go">See details ›</span></button>`;
+  }
+  return `<button type="button" class="tile" data-goto="updates"><span class="k">Software</span>` +
+    `<span class="v ${u.enabled ? 'ok' : 'dim'}">${esc(updateLabel(u))}</span>` +
+    `<span class="s">${esc(u.current_release || (u.enabled ? 'installer baseline' : 'updates are not set up'))}</span></button>`;
+}
 
-function render(d) {
-  const worst = (d.problems || []).find(p => p.severity === 'red') || (d.problems || []).find(p => p.severity === 'amber');
+function updatesPanel(upd, secure) {
+  const avail = upd.available || {}, pending = upd.pending || {};
+  const staged = !!pending.release, hasUpdate = !!avail.release && !staged;
+  const step = staged ? 3 : (hasUpdate ? 2 : 1);
+  const cls = n => n < step ? 'step done' : (n === step ? 'step now' : 'step');
+  const can = upd.enabled && secure;
+  const checked = upd.last_checked_at ? `Last checked ${esc(upd.last_checked_at)}.` : 'Not checked yet.';
+  let html = '';
+  if (!upd.enabled) {
+    html += `<div class="notice">Wireless updates are not set up on this oven. Update it with the latest June USB stick instead. ${upd.last_error ? esc(upd.last_error) : ''}</div>`;
+  }
+  if (upd.enabled && !secure) {
+    html += `<div class="notice bad"><b>Open the secure page to update.</b> The update password must not cross your network unencrypted. <a href="https://${esc(location.hostname)}/local#updates">Open https://${esc(location.hostname)}/local</a></div>`;
+  }
+  if (can) {
+    html += `<label class="field"><span>Update password</span><input id="update-token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="From the June USB stick"></label>` +
+      `<p class="note">It's on the stick you installed with, in <span class="mono">june-logs/update-token.txt</span>, and on the installer's last screen. The oven keeps its copy in <span class="mono">/data/june/updates/control-token</span>.</p><div style="height:12px"></div>`;
+  }
+  html += `<ol class="steps">` +
+    `<li class="${cls(1)}"><span class="n">${step > 1 ? '✓' : '1'}</span><div><b>Check for an update</b>` +
+      `<div class="d">Installed: ${esc(upd.current_release || 'installer baseline')} on the ${esc(upd.channel || 'stable')} channel. ${checked}</div>` +
+      `<div class="actions"><button class="btn ${step === 1 ? 'ember' : 'ghost'}" type="button" data-update="check" ${can ? '' : 'disabled'}>Check now</button></div></div></li>` +
+    `<li class="${cls(2)}"><span class="n">${step > 2 ? '✓' : '2'}</span><div><b>${hasUpdate ? 'Download ' + esc(avail.release) + ' and get it ready' : 'Download and get it ready'}</b>` +
+      `<div class="d">${hasUpdate ? esc(bytes(avail.artifact_size)) + '. The oven checks the signature and the file before keeping it, and nothing changes until you restart.' : 'Shows up here when there is an update.'}</div>` +
+      (avail.notes && hasUpdate ? `<div class="notice">${esc(avail.notes)}</div>` : '') +
+      (hasUpdate ? `<div class="actions"><button class="btn ember" type="button" data-update="stage" ${can ? '' : 'disabled'}>Download and get ready</button></div>` : '') +
+      `</div></li>` +
+    `<li class="${cls(3)}"><span class="n">3</span><div><b>Restart the oven to finish</b>` +
+      `<div class="d">${staged ? esc(pending.release) + ' is downloaded and checked. Turn the oven off and on at the wall when it is not cooking. It keeps the current app as a backup and goes back to it if the new one fails to start.' : 'The update is put in place while the oven starts up.'}</div></div></li>` +
+    `</ol><div id="update-msg" class="notice" hidden></div>`;
+  if (upd.last_error && upd.enabled) html += `<div class="notice bad"><b>Last update problem</b><br>${esc(upd.last_error)}</div>`;
+  if (upd.enabled) {
+    const restore = upd.restore;
+    html += `<div class="cards">` +
+      `<div class="card"><b>Go back to the previous app</b>` +
+      (restore ? `<div class="d">Puts back the app this oven was running before ${esc(restore.undoes)}, from the copy it kept when that update went in. Use it if the update misbehaves. Restart the oven to finish.</div>` +
+        `<div class="actions"><button class="btn ghost" type="button" data-update="restore" ${can && !staged ? '' : 'disabled'}>Go back</button></div>`
+        : `<div class="d">Available after a wireless update: the oven keeps a copy of the app it replaced, and you can go back to it here.</div>`) +
+      `</div>` +
+      `<div class="card"><b>Install from a file</b><div class="d">For an update bundle (.zip) from Project July, when the oven can't reach the internet. The oven checks the signature exactly like a download and never installs an older release.</div>` +
+        `<div class="actions"><label class="btn ghost ${can ? '' : 'off'}"><input type="file" id="update-file" accept=".zip,application/zip" hidden ${can ? '' : 'disabled'}>Choose file…</label></div></div>` +
+      `</div>`;
+  }
+  html += `<h3>Details</h3>` + rows(row('State', updateLabel(upd)) + row('Channel', upd.channel || 'not configured') +
+    row('Installed release', upd.current_release || 'installer baseline') +
+    (avail.artifact_sha256 ? row('Available file SHA-256', avail.artifact_sha256.slice(0, 16)) : '') +
+    (pending.artifact_sha256 ? row('Downloaded file SHA-256', pending.artifact_sha256.slice(0, 16)) : '')) +
+    `<p class="note">Updates come over HTTPS from Project July's signed repository. The oven checks the Ed25519 signature and the file's SHA-256 before it keeps anything, and never installs an older release over a newer one.</p>`;
+  return html;
+}
+
+function panels(d) {
   const ident = (d.oven && d.oven.identity) || {};
-  const upd = d.update || {};
-  const secureUpdate = location.protocol === 'https:';
-  const sev = worst ? worst.severity : 'ok';
-  $('dot').className = 'dot ' + (sev === 'ok' ? '' : sev);
-  $('headline').textContent = worst ? worst.title : 'All good';
-  $('subline').textContent = `June Local ${d.install.installer_version || 'unknown'} · server ${d.version.version} (${d.version.commit}) · up ${Math.round(d.version.uptime_seconds/3600)} h`;
-  $('tiles').innerHTML =
-    tile('Oven', d.oven.connection === 'connected' ? 'Connected' : 'Offline', `last message ${secs(d.oven.last_frame_age_seconds)}`, d.oven.connection === 'connected' ? 'ok' : 'red') +
-    tile('Identity', ident.account_present ? 'Present' : 'Missing',
-      ident.token_prefix ? `${ident.token_prefix} · ${ident.token_source}` : (ident.token_source === 'none' ? 'no local token' : ident.token_source),
-      ident.account_present ? 'ok' : 'red') +
-    tile('Cooking', d.cook.state === 'idle' ? 'No cook running' : (d.cook.mode || 'Cooking'), cookSub(d.cook), d.cook.state === 'idle' ? '' : 'ok') +
-    tile('Camera', d.camera.camerad_running ? 'Running' : 'Down', `last frame ${secs(d.camera.last_frame_age_seconds)}`, d.camera.last_frame_age_seconds > 20 ? 'amber' : 'ok') +
-    tile('Updates', updateLabel(upd), updateSummary(upd), updatesTone(upd)) +
-    tile('Installer', (d.install && d.install.installer_version) || 'unknown', (d.install && d.install.build_id) || '') +
-    tile('Server', d.version.version, `${d.version.commit} · ${d.version.build_date}`);
-
-  $('problems').innerHTML = (d.problems || []).map(p => `<div class="prob ${p.severity}"><b>${esc(p.title)}</b><div>${esc(p.detail)}</div><div class="fix">${esc(p.fix)}</div></div>`).join('');
-
   const compsList = d.install.components || [];
   const comps = compsList.map(c => {
     const verified = !!c.expected;
@@ -213,103 +359,167 @@ function render(d) {
   const presentCount = compsList.filter(c => c.ok).length;
   const verifiedCount = compsList.filter(c => c.expected && c.ok).length;
   const factoryCount = compsList.filter(c => !c.expected).length;
-  const clients = (d.clients.items || []).map(c => row(`${c.name} (${c.platform || 'client'})`, `${c.paired ? 'paired' : 'unpaired'} · ${c.connected ? 'connected' : 'idle'} · ${secs(c.last_seen_seconds)}`, c.paired ? 'ok' : 'amber')).join('') || '<p>No paired clients.</p>';
-  const cert = row('Subject', d.cert.subject) + row('SANs', (d.cert.sans||[]).join(', ')) + row('Issuer', d.cert.issuer) +
-    row('Valid until', `${d.cert.not_after} (${d.cert.days_remaining} days)`, d.cert.days_remaining < 30 ? 'amber' : 'ok') +
-    row('Fingerprint', d.cert.fingerprint ? d.cert.fingerprint.slice(0,16) : '') +
-    row('CA fingerprint', d.cert.ca_fingerprint ? d.cert.ca_fingerprint.slice(0,16) : '') +
-    row('CA in system store', d.cert.ca_in_system_store ? 'yes' : 'no', d.cert.ca_in_system_store ? 'ok' : 'amber') +
-    row('Covers current IP', d.cert.san_covers_current_ip ? 'yes' : 'no', d.cert.san_covers_current_ip ? 'ok' : 'amber') +
-    `<p><a href="/local/ca.crt">Download CA / chain</a> — check the fingerprint matches the one shown by the installer.</p>`;
-  const net = row('IP', (d.network.ips||[]).join(', ')) + row('Hostname', d.network.hostname || '') +
-    row('mDNS', d.network.mdns ? `${d.network.mdns} (configured; use the IP if it does not resolve)` : 'not configured') +
-    row('Ports', `TLS ${d.network.tls_port} · HTTP ${d.network.http_port}`) + row('Hosts override', d.network.hosts_overrides ? 'yes' : 'no') +
-    row('HA client', d.network.ha_client_version || 'not seen') + row('Gateway', d.network.gateway || '') + row('DNS', (d.network.dns||[]).join(', '));
-  const storage = row('Data free', d.storage.data_free_pct.toFixed(1) + '%', d.storage.data_free_pct < 10 ? 'amber' : 'ok') +
-    row('Collector free', d.storage.collector_free_pct.toFixed(1) + '%', d.storage.collector_free_pct < 10 ? 'amber' : 'ok') +
-    row('Log', bytes(d.storage.log_bytes)) + row('JSONL', bytes(d.storage.jsonl_bytes)) + row('Media', bytes(d.storage.media_bytes)) + row('Latest frame', bytes(d.storage.latest_frame_bytes));
   const customFlow = compsList.some(c => c.name === 'Remotes' && c.expected);
   const flow = customFlow ? 'custom (per-home CA + no-pin apps)' : 'basic (factory June apps)';
-  const provenance = row('Install', `${flow} · ${d.install.date || ''}`) +
+  const install = rows(comps + row('Summary', `${presentCount}/${compsList.length} present · ${verifiedCount} hash-verified · ${factoryCount} factory`)) +
+    `<h3>Provenance</h3>` + rows(row('Install', `${flow} · ${d.install.date || ''}`) +
     row('install.json mode', d.install.mode || 'unknown') +
     row('Server', `${d.version.version} · ${d.version.commit} · ${d.version.build_date}`) +
     row('Installer', `${d.install.installer_version || 'unknown'} · ${d.install.build_id || ''}`) +
     row('Persistence', d.install.persistence || '') +
     row('CA issuer', `${d.cert.issuer || 'unknown'} · recorded: ${d.install.ca_mode || 'unknown'}`) +
-    row('Hostname', d.install.hostname || '') + row('Install IP', d.install.install_ip || '') + row('Presets', `${d.presets.catalog_entries} entries · ${bytes(d.presets.upstream_bytes)}`);
-  const avail = upd.available || {};
-  const pending = upd.pending || {};
-  const updateState = row('State', updateLabel(upd), updatesTone(upd)) +
-    row('Channel', upd.channel || 'not configured') +
-    row('Installed release', upd.current_release || 'installer baseline') +
-    row('Last checked', upd.last_checked_at || 'never') +
-    (pending.release ? row('Staged release', `${pending.release} · reboot required`, 'amber') : '') +
-    (pending.artifact_sha256 ? row('Staged SHA-256', pending.artifact_sha256.slice(0,16)) : '') +
-    (avail.release ? row('Available release', `${avail.release} · ${bytes(avail.artifact_size)}`, 'amber') : '') +
-    (avail.artifact_sha256 ? row('Artifact SHA-256', avail.artifact_sha256.slice(0,16)) : '') +
-    (avail.notes ? `<div class="notice"><b>${esc(avail.release)}</b><br>${esc(avail.notes)}</div>` : '') +
-    (upd.last_error ? `<div class="notice bad"><b>Update error</b><br>${esc(upd.last_error)}</div>` : '') +
-    (pending.release ? `<div class="notice"><b>Ready for the next boot.</b> Power-cycle the oven normally. The boot applier backs up the live Chef APK, verifies the staged copy, and retains the previous APK for rollback.</div>` : '') +
-    (!secureUpdate ? `<div class="notice bad"><b>HTTPS is required for update controls.</b> The control token must not cross the LAN in plaintext. <a href="https://${esc(location.hostname)}/local">Open the secure status page</a>.</div>` : '') +
-    `<p>Updates are pulled over HTTPS from the signed repository. The oven verifies the Ed25519 manifest and the APK SHA-256 before staging anything.</p>` +
-    `<label class="field"><span>Update control token</span><input id="update-token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Printed by the installer"></label>` +
-    `<div class="actions"><button type="button" data-update="check" ${upd.enabled && secureUpdate ? '' : 'disabled'}>Check for update</button>` +
-    `<button class="primary" type="button" data-update="stage" ${upd.enabled && secureUpdate && avail.release && !pending.release ? '' : 'disabled'}>Stage for next boot</button></div>` +
-    `<div id="update-msg" class="notice" hidden></div>` +
-    `<p class="mono">Installer log / USB: /june-logs/update-token.txt<br>Oven file: /data/june/updates/control-token</p>`;
-  const cam = row('june-camerad', d.camera.camerad_running ? 'running' : 'stopped', d.camera.camerad_running ? 'ok' : 'red') +
-    row('Stock socket', d.camera.stock_socket ? 'present' : 'missing', d.camera.stock_socket ? 'ok' : 'amber') + row('Viewer gate', d.camera.viewer_gate ? 'open' : 'closed') +
-    row('Last frame', secs(d.camera.last_frame_age_seconds)) + row('Light helper', d.light.helper_installed ? 'installed' : 'missing', d.light.helper_installed ? 'ok' : 'amber') +
-    row('Light scene', d.light.scene_on ? 'on' : 'off') + row('Last light result', d.light.last_result || 'none');
+    row('Hostname', d.install.hostname || '') + row('Install IP', d.install.install_ip || '') +
+    row('Presets', `${d.presets.catalog_entries} entries · ${bytes(d.presets.upstream_bytes)}`));
   // The June account row is what the oven's app reads for its bearer token.
   // A factory reset wipes it; only the pre-Android boot ensure can put it back,
-  // so this section is the first thing support needs for a "connected" oven
+  // so this tab is the first thing support needs for a "connected" oven
   // that never connects.
-  const identity = row('June account row', ident.account_present ? 'present' : 'missing', ident.account_present ? 'ok' : 'red') +
+  const identity = rows(row('June account row', ident.account_present ? 'present' : 'missing', ident.account_present ? 'ok' : 'red') +
     row('Account name', ident.account_name || (ident.account_present ? 'unreadable' : '—')) +
-    row('Token type', ident.token_type || '—') +
-    row('Token source', ident.token_source || 'none') +
-    row('Token prefix', ident.token_prefix || '—') +
-    `<p>Read from <span class="mono">/data/system/users/0/accounts.db</span> and <span class="mono">/data/june/identity.json</span>. ` +
-    `The full token is never shown. A <b>factory reset</b> wipes this row; it is re-created by the boot-time identity ensure from the installer seed on the next boot. ` +
-    `june-local cannot create it at runtime — if it stays missing after a reboot, reinstall from the current USB image and check /data/june/logs/identity.log.</p>`;
-  // Re-rendering replaces the sections, so carry over what the reader was
-  // doing: which sections are open, the token being typed (and its focus),
-  // and the last update message.
-  const wasOpen = {};
-  document.querySelectorAll('#sections details').forEach(el => { wasOpen[el.id] = el.open; });
+    row('Token type', ident.token_type || '—') + row('Token source', ident.token_source || 'none') +
+    row('Token prefix', ident.token_prefix || '—')) +
+    `<p class="note">Read from <span class="mono">/data/system/users/0/accounts.db</span> and <span class="mono">/data/june/identity.json</span>. ` +
+    `The full token is never shown. A factory reset wipes this row, and the oven puts it back from the installer's copy on the next boot. ` +
+    `If it is still missing after a restart, reinstall from the current June USB stick and check <span class="mono">/data/june/logs/identity.log</span>.</p>`;
+  const clients = (d.clients.items || []).length
+    ? rows((d.clients.items || []).map(c => row(`${c.name} (${c.platform || 'client'})`, `${c.paired ? 'paired' : 'unpaired'} · ${c.connected ? 'connected' : 'idle'} · ${secs(c.last_seen_seconds)}`, c.paired ? 'ok' : 'amber')).join(''))
+    : `<div class="notice">No paired apps yet. Pair the Project July app or Home Assistant to see them here.</div>`;
+  const cam = rows(row('june-camerad', d.camera.camerad_running ? 'running' : 'stopped', d.camera.camerad_running ? 'ok' : 'red') +
+    row('Stock socket', d.camera.stock_socket ? 'present' : 'missing', d.camera.stock_socket ? 'ok' : 'amber') +
+    row('Viewer gate', d.camera.viewer_gate ? 'open' : 'closed') + row('Last frame', secs(d.camera.last_frame_age_seconds)) +
+    row('Light helper', d.light.helper_installed ? 'installed' : 'missing', d.light.helper_installed ? 'ok' : 'amber') +
+    row('Light scene', d.light.scene_on ? 'on' : 'off') + row('Last light result', d.light.last_result || 'none'));
+  const net = rows(row('IP', (d.network.ips||[]).join(', ')) + row('Hostname', d.network.hostname || '') +
+    row('mDNS', d.network.mdns ? `${d.network.mdns} (use the IP if it does not resolve)` : 'not configured') +
+    row('Ports', `TLS ${d.network.tls_port} · HTTP ${d.network.http_port}`) + row('Hosts override', d.network.hosts_overrides ? 'yes' : 'no') +
+    row('HA client', d.network.ha_client_version || 'not seen') + row('Gateway', d.network.gateway || '') + row('DNS', (d.network.dns||[]).join(', ')));
+  const cert = rows(row('Subject', d.cert.subject) + row('Names', (d.cert.sans||[]).join(', ')) + row('Issuer', d.cert.issuer) +
+    row('Valid until', d.cert.not_after ? `${d.cert.not_after} (${d.cert.days_remaining} days)` : 'unknown', d.cert.days_remaining < 30 ? 'amber' : 'ok') +
+    row('Fingerprint', d.cert.fingerprint ? d.cert.fingerprint.slice(0,16) : '') +
+    row('CA fingerprint', d.cert.ca_fingerprint ? d.cert.ca_fingerprint.slice(0,16) : '') +
+    row('CA in system store', d.cert.ca_in_system_store ? 'yes' : 'no', d.cert.ca_in_system_store ? 'ok' : 'amber') +
+    row('Covers current IP', d.cert.san_covers_current_ip ? 'yes' : 'no', d.cert.san_covers_current_ip ? 'ok' : 'amber')) +
+    `<div class="actions"><a class="btn ghost" href="/local/ca.crt">Download CA certificate</a></div>` +
+    `<p class="note">Check that the fingerprint matches the one the installer showed.</p>`;
+  const storage = rows(row('Data free', d.storage.data_free_pct.toFixed(1) + '%', d.storage.data_free_pct < 10 ? 'amber' : 'ok') +
+    row('Collector free', d.storage.collector_free_pct.toFixed(1) + '%', d.storage.collector_free_pct < 10 ? 'amber' : 'ok') +
+    row('Log', bytes(d.storage.log_bytes)) + row('JSONL', bytes(d.storage.jsonl_bytes)) + row('Media', bytes(d.storage.media_bytes)) +
+    row('Latest frame', bytes(d.storage.latest_frame_bytes)));
+  const errors = (d.errors||[]).length ? rows((d.errors||[]).map(e => row(e.time, `${e.source}: ${e.message}`)).join('')) : `<div class="notice good">No errors since June Local started.</div>`;
+  return {
+    updates: updatesPanel(d.update || {}, location.protocol === 'https:'),
+    install, identity, clients, camera: cam, network: net, cert, storage, errors
+  };
+}
+
+function setUpdateMessage(text, bad) {
+  const el = $('update-msg');
+  if (!el) return;
+  el.hidden = !text;
+  el.className = 'notice' + (bad ? ' bad' : '');
+  el.textContent = text || '';
+}
+async function runUpdateAction(action, file) {
+  if (location.protocol !== 'https:') {
+    setUpdateMessage('Open this page over HTTPS before entering the update password.', true);
+    return;
+  }
+  const input = $('update-token');
+  const token = (input && input.value.trim()) || updateToken;
+  if (!token) {
+    setUpdateMessage('Enter the update password from the June USB stick.', true);
+    if (input) input.focus();
+    return;
+  }
+  updateToken = token;
+  try { sessionStorage.setItem(UPDATE_TOKEN_KEY, token); } catch (e) {}
+  if (action === 'restore' && !window.confirm('Go back to the previous app? It is put in place the next time the oven restarts.')) return;
+  document.querySelectorAll('[data-update]').forEach(b => { b.disabled = true; });
+  setUpdateMessage({ check: 'Checking for an update…', stage: 'Downloading and checking the update…',
+    restore: 'Getting the previous app ready…', upload: 'Uploading and checking the file…' }[action], false);
+  try {
+    const headers = { 'X-June-Update-Token': token };
+    if (file) headers['Content-Type'] = 'application/zip';
+    const res = await fetch('/local/update/' + action, { method: 'POST', cache: 'no-store', headers, body: file || undefined });
+    const reply = await res.json().catch(() => ({}));
+    if (reply.update) data.update = reply.update;
+    render(data);
+    if (res.status === 401) throw new Error('The update password was not accepted. Check it against june-logs/update-token.txt on the stick.');
+    if (!res.ok) throw new Error(reply.error || ('HTTP ' + res.status));
+    if (action === 'stage' || action === 'upload' || action === 'restore') {
+      setUpdateMessage('Ready. Restart the oven when it is not cooking to finish the update.', false);
+    } else if (reply.update && reply.update.available) {
+      setUpdateMessage('There is an update. Step 2 has the details.', false);
+    } else {
+      setUpdateMessage('This oven is up to date.', false);
+    }
+  } catch (err) {
+    render(data);
+    setUpdateMessage((err && err.message) || 'The update request failed.', true);
+  }
+}
+
+function pickTab(d) {
+  if (userPickedTab && activeTab) return activeTab;
+  for (const p of (d.problems || [])) if (PROBLEM_TAB[p.id]) return PROBLEM_TAB[p.id];
+  return 'updates';
+}
+function showTab(id, byUser) {
+  if (byUser) { userPickedTab = true; try { history.replaceState(null, '', '#' + id); } catch (e) {} }
+  activeTab = id;
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.tab === id)));
+  document.querySelectorAll('.panel').forEach(p => { p.hidden = p.id !== 'panel-' + id; });
+}
+
+function render(d) {
+  const problems = d.problems || [];
+  const worst = problems.find(p => p.severity === 'red') || problems.find(p => p.severity === 'amber');
+  const upd = d.update || {};
+  const connected = d.oven.connection === 'connected';
+  $('pill').className = 'pill ' + (connected ? 'ok' : 'red');
+  $('pill').textContent = connected ? 'Connected' : 'Offline';
+  $('oven-name').textContent = d.network.hostname || d.install.hostname || 'Your oven';
+  $('headline').textContent = worst ? worst.title : 'Everything is working.';
+  $('subline').textContent = `June Local ${d.install.installer_version || 'unknown'} · server ${d.version.version} (${d.version.commit}) · up ${Math.round(d.version.uptime_seconds/3600)} h`;
+
+  $('problems').innerHTML = problems.map(p => `<div class="prob ${esc(p.severity)}"><div><b>${esc(p.title)}</b><div>${esc(p.detail)}</div><div class="fix">${esc(p.fix)}</div></div>` +
+    (PROBLEM_TAB[p.id] ? `<button class="btn ghost" type="button" data-goto="${PROBLEM_TAB[p.id]}">Show details</button>` : '') + `</div>`).join('');
+
+  const camOK = d.camera.camerad_running && d.camera.last_frame_age_seconds <= 20;
+  $('tiles').innerHTML =
+    tile('Oven', connected ? 'Connected' : 'Offline', `last message ${secs(d.oven.last_frame_age_seconds)}`, connected ? 'ok' : 'red') +
+    tile('Cooking', d.cook.state === 'idle' ? 'Idle' : (d.cook.mode || 'Cooking'), cookSub(d.cook), d.cook.state === 'idle' ? '' : 'ok') +
+    tile('Camera', d.camera.camerad_running ? (camOK ? 'Working' : 'Waiting for a frame') : 'Down', `last frame ${secs(d.camera.last_frame_age_seconds)}`, d.camera.camerad_running ? (camOK ? 'ok' : 'amber') : 'red') +
+    updateTile(upd);
+
+  // Tabs carry a dot when something in them needs a look.
+  const flagged = {};
+  problems.forEach(p => { const t = PROBLEM_TAB[p.id]; if (t && flagged[t] !== 'red') flagged[t] = p.severity; });
+  if (updateNeedsYou(upd)) flagged.updates = upd.state === 'error' ? 'red' : 'amber';
+  if ((d.errors || []).length && !flagged.errors) flagged.errors = 'dim';
+  $('tabs').innerHTML = TABS.map(([id, name]) => `<button class="tab" type="button" role="tab" data-tab="${id}" aria-selected="false">${esc(name)}` +
+    (flagged[id] ? `<span class="badge ${flagged[id]}"></span>` : '') + `</button>`).join('');
+
+  // Re-rendering replaces the panels, so carry over what the reader was doing: the
+  // password being typed (and its focus) and the last update message.
   const oldInput = $('update-token');
   const typed = oldInput ? oldInput.value : '';
   const hadFocus = !!oldInput && document.activeElement === oldInput;
   const caret = hadFocus ? [oldInput.selectionStart, oldInput.selectionEnd] : null;
   const oldMsg = $('update-msg');
   const msgState = oldMsg && !oldMsg.hidden ? { text: oldMsg.textContent, bad: oldMsg.classList.contains('bad') } : null;
-  $('sections').innerHTML = details('sec-install','Install & components',comps + row('Summary', `${presentCount}/${compsList.length} present · ${verifiedCount} hash-verified · ${factoryCount} factory`)) +
-    details('sec-identity','Local identity',identity) +
-    details('sec-clients','Clients & pairing',clients) +
-    details('sec-camera','Camera & light',cam) +
-    details('sec-update','Software updates',updateState) +
-    details('sec-cert','Certificate',cert) +
-    details('sec-network','Network',net) +
-    details('sec-storage','Storage',storage) +
-    details('sec-provenance','Provenance',provenance) +
-    details('sec-errors','Recent errors',(d.errors||[]).map(e=>row(e.time, `${e.source}: ${e.message}`)).join('') || '<p>None.</p>');
+  const html = panels(d);
+  $('panels').innerHTML = TABS.map(([id]) => `<div class="panel" role="tabpanel" id="panel-${id}">${html[id]}</div>`).join('');
+  showTab(pickTab(d), false);
 
-  const open = {}; (d.problems||[]).forEach(p => { const m = { 'oven-disconnected':'sec-network','identity-missing':'sec-identity','cert-untrusted':'sec-cert','factory-fallback':'sec-install','camera-bridge':'sec-camera','light-bridge':'sec-camera','cert-expiry':'sec-cert','cert-ip-mismatch':'sec-cert','storage-low':'sec-storage' }; if (m[p.id]) open[m[p.id]] = 1; });
-  if (upd.state === 'update-available' || upd.state === 'staged' || upd.state === 'error') open['sec-update'] = 1;
-  // A section the reader opened or closed keeps that state; the others keep
-  // their previous state and open when a problem points at them.
-  document.querySelectorAll('#sections details').forEach(el => {
-    el.open = userToggled.has(el.id) ? !!wasOpen[el.id] : (!!wasOpen[el.id] || !!open[el.id]);
-  });
-  syncUpdateToken();
   const newInput = $('update-token');
-  if (newInput && typed) newInput.value = typed;
+  if (newInput) newInput.value = typed || updateToken;
   if (newInput && hadFocus) {
     newInput.focus();
     try { newInput.setSelectionRange(caret[0], caret[1]); } catch (e) {}
   }
   if (msgState) setUpdateMessage(msgState.text, msgState.bad);
+  updateMailto();
 }
 
 function refresh() { fetch('/local/status', {cache:'no-store'}).then(r=>r.json()).then(j=>{data=j;render(j);}).catch(()=>{}); }
@@ -332,38 +542,94 @@ function copyText(txt) {
   document.body.removeChild(ta);
   return ok ? Promise.resolve() : Promise.reject(new Error('copy unavailable'));
 }
+
+// The email fallback carries the note and a short summary, never the diagnostics: those can
+// be downloaded and attached by hand.
+function updateMailto() {
+  const d = data, upd = d.update || {};
+  const note = $('report-note').value.trim();
+  const summary = [
+    'June Local ' + (d.install.installer_version || 'unknown') + ' (' + (d.install.build_id || 'no build id') + ')',
+    'Server ' + d.version.version + ' ' + d.version.commit,
+    'Oven ' + (d.oven.model || 'unknown') + ', ' + d.oven.connection,
+    'Software ' + (upd.current_release || 'installer baseline') + ', ' + updateLabel(upd),
+    'Problems: ' + ((d.problems || []).map(p => p.id).join(', ') || 'none')
+  ].join('\n');
+  const body = (note || 'What happened:') + '\n\n--\n' + summary + '\n\nTip: Download diagnostics on /local and attach the file.';
+  $('report-mail').href = 'mailto:reports@project-july.org?subject=' + encodeURIComponent('June Local report') + '&body=' + encodeURIComponent(body);
+}
+async function loadPreview() {
+  const pre = $('report-preview-body');
+  try {
+    const res = await fetch('/local/report/preview?logs=' + ($('report-logs').checked ? '1' : '0'), { cache: 'no-store' });
+    const out = await res.json();
+    if (!res.ok || !out.success) throw new Error(out.error || ('HTTP ' + res.status));
+    pre.textContent = 'Sent to ' + out.url + '\n\n' + JSON.stringify({
+      note: $('report-note').value.trim() || '(your note)',
+      contact: $('report-contact').value.trim() || undefined,
+      diagnostics: out.diagnostics
+    }, null, 2);
+  } catch (e) {
+    pre.textContent = 'Could not load the preview: ' + e.message;
+  }
+}
+
+document.addEventListener('click', (event) => {
+  const tab = event.target.closest('[data-tab]');
+  if (tab) { showTab(tab.dataset.tab, true); return; }
+  const go = event.target.closest('[data-goto]');
+  if (go) {
+    showTab(go.dataset.goto, true);
+    $('tabs').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  const button = event.target.closest('[data-update]');
+  if (button) runUpdateAction(button.getAttribute('data-update'));
+});
 $('copy').addEventListener('click', () => {
   const txt = '```json\n' + JSON.stringify(data, null, 2) + '\n```';
   copyText(txt).then(() => {
     $('copy').textContent = 'Copied';
     setTimeout(() => { $('copy').textContent = 'Copy diagnostics'; }, 1500);
   }).catch(() => {
-    $('copy').textContent = 'Copy failed — use Download diagnostics';
+    $('copy').textContent = 'Copy failed, use Download diagnostics';
     setTimeout(() => { $('copy').textContent = 'Copy diagnostics'; }, 3500);
   });
 });
-$('sections').addEventListener('click', (event) => {
-  const summary = event.target.closest('summary');
-  if (summary && summary.parentElement) userToggled.add(summary.parentElement.id);
-  const button = event.target.closest('[data-update]');
-  if (button) runUpdateAction(button.getAttribute('data-update'));
+document.addEventListener('change', (event) => {
+  if (event.target.id !== 'update-file' || !event.target.files.length) return;
+  const file = event.target.files[0];
+  event.target.value = '';
+  runUpdateAction('upload', file);
+});
+$('report-note').addEventListener('input', updateMailto);
+$('report-logs').addEventListener('change', () => {
+  $('report-logs-line').hidden = !$('report-logs').checked;
+  if (!$('report-preview-body').hidden) loadPreview();
+});
+$('report-preview').addEventListener('click', () => {
+  const pre = $('report-preview-body');
+  pre.hidden = !pre.hidden;
+  $('report-preview').textContent = pre.hidden ? 'See exactly what will be sent' : 'Hide what will be sent';
+  if (!pre.hidden) { pre.textContent = 'Loading…'; loadPreview(); }
 });
 $('report-send').addEventListener('click', async () => {
   const note = $('report-note').value.trim();
   const msg = $('report-msg');
-  const say = (text, bad) => { msg.hidden = false; msg.className = bad ? 'notice bad' : 'notice'; msg.textContent = text; };
-  if (!note) { say('Say briefly what went wrong first.', true); return; }
+  const say = (html, cls) => { msg.hidden = false; msg.className = 'notice' + (cls ? ' ' + cls : ''); msg.innerHTML = html; };
+  if (!note) { say('Say briefly what happened first.', 'bad'); $('report-note').focus(); return; }
   $('report-send').disabled = true;
-  say('Sending…', false);
+  say('Sending…');
   try {
     const res = await fetch('/local/report', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ note, contact: $('report-contact').value.trim() }) });
+      body: JSON.stringify({ note, contact: $('report-contact').value.trim(), include_logs: $('report-logs').checked }) });
     const out = await res.json().catch(() => ({}));
     if (!res.ok || !out.success) throw new Error(out.error || ('HTTP ' + res.status));
-    say(`Sent. Your report code is ${out.code}. Quote it if you write to us.`, false);
+    say(`<div class="sent"><span class="eyebrow ok">Sent</span><span class="code">${esc(out.code)}</span><span class="dim">Your report code. Quote it if you write to us.</span></div>`, 'good');
     $('report-note').value = '';
+    updateMailto();
   } catch (e) {
-    say(`Couldn't send the report: ${e.message}. You can use Download diagnostics and open a GitHub issue instead.`, true);
+    say(`Couldn't send the report: ${esc(e.message)}. Use <b>Prepare an email instead</b>, and attach the file from Download diagnostics.`, 'bad');
   } finally {
     setTimeout(() => { $('report-send').disabled = false; }, 3000);
   }

@@ -99,6 +99,7 @@ type UpdateStatus struct {
 	Pending         *UpdatePending `json:"pending,omitempty"`
 	LastCheckedAt   string         `json:"last_checked_at,omitempty"`
 	LastError       string         `json:"last_error,omitempty"`
+	Restore         *UpdateRestore `json:"restore,omitempty"`
 }
 
 type updaterOptions struct {
@@ -106,6 +107,7 @@ type updaterOptions struct {
 	DataDir        string
 	TokenFile      string
 	PersistentFile string
+	BackupFile     string
 	AppVersion     string
 	AllowInsecure  bool
 	SkipPlatform   bool
@@ -128,6 +130,7 @@ type Updater struct {
 	readyFile       string
 	appliedFile     string
 	persistentFile  string
+	backupFile      string
 	tokenFile       string
 	token           string
 	appVersion      string
@@ -172,6 +175,10 @@ func newUpdater(opts updaterOptions) (*Updater, error) {
 	if opts.TokenFile == "" {
 		opts.TokenFile = filepath.Join(opts.DataDir, "control-token")
 	}
+	if opts.BackupFile == "" {
+		// june_reaper.sh keeps the Chef APK it replaced here (/data/june/chef_stock_backup.apk).
+		opts.BackupFile = filepath.Join(filepath.Dir(opts.DataDir), "chef_stock_backup.apk")
+	}
 	if opts.PersistentFile == "" {
 		opts.PersistentFile = "/system/etc/june/chef_update.json"
 	}
@@ -181,6 +188,7 @@ func newUpdater(opts updaterOptions) (*Updater, error) {
 		readyFile:       filepath.Join(opts.DataDir, "ready"),
 		appliedFile:     filepath.Join(opts.DataDir, "applied.json"),
 		persistentFile:  opts.PersistentFile,
+		backupFile:      opts.BackupFile,
 		tokenFile:       opts.TokenFile,
 		appVersion:      opts.AppVersion,
 		allowHTTP:       opts.AllowInsecure,
@@ -412,6 +420,9 @@ func (u *Updater) Status() UpdateStatus {
 		pending := *st.Pending
 		st.Pending = &pending
 	}
+	if st.Enabled {
+		st.Restore = u.restoreOffer()
+	}
 	return st
 }
 
@@ -476,14 +487,40 @@ func (u *Updater) Stage(ctx context.Context) (UpdateStatus, error) {
 		u.setError(err)
 		return u.Status(), err
 	}
-	if err := ensureUpdateFreeSpace(u.transactionsDir, artifact.Size); err != nil {
-		u.setError(err)
-		return u.Status(), err
+	manifestHash := sha256.Sum256(manifestRaw)
+	signatureHash := sha256.Sum256(signatureRaw)
+	record := &updateRecord{
+		Release: manifest.Release, Channel: manifest.Channel, Sequence: manifest.Sequence,
+		PublishedAt: manifest.PublishedAt, Notes: manifest.Notes,
+		ArtifactID:     artifact.ID,
+		ArtifactSize:   artifact.Size,
+		ArtifactSHA256: artifact.SHA256, AppID: artifact.AppID, VersionCode: artifact.VersionCode,
+		ManifestSHA256: hex.EncodeToString(manifestHash[:]), SignatureSHA256: hex.EncodeToString(signatureHash[:]),
 	}
-	txnName, txnDir, err := u.createUpdateTransaction()
+	err = u.commitTransaction(record, pending, func(txnDir string) error {
+		_, err := u.downloadArtifact(ctx, downloadURL, artifact, txnDir)
+		return err
+	})
 	if err != nil {
 		u.setError(err)
 		return u.Status(), err
+	}
+	u.mu.Lock()
+	u.status.Available = releaseFromManifest(manifest, artifact, u.now().UTC())
+	u.mu.Unlock()
+	return u.Status(), nil
+}
+
+// commitTransaction stages one Chef APK as a boot-time update. fill writes the verified APK
+// as chef_cookmodes.apk into the new transaction directory; the record, hash marker and
+// ready marker follow it in the order june_reaper.sh relies on. Callers hold opMu.
+func (u *Updater) commitTransaction(record *updateRecord, previous *updateRecord, fill func(txnDir string) error) error {
+	if err := ensureUpdateFreeSpace(u.transactionsDir, record.ArtifactSize); err != nil {
+		return err
+	}
+	txnName, txnDir, err := u.createUpdateTransaction()
+	if err != nil {
+		return err
 	}
 	cleanupTxn := true
 	defer func() {
@@ -491,63 +528,44 @@ func (u *Updater) Stage(ctx context.Context) (UpdateStatus, error) {
 			_ = os.RemoveAll(txnDir)
 		}
 	}()
-	_, err = u.downloadArtifact(ctx, downloadURL, artifact, txnDir)
-	if err != nil {
-		u.setError(err)
-		return u.Status(), err
+	if err := fill(txnDir); err != nil {
+		return err
 	}
-	manifestHash := sha256.Sum256(manifestRaw)
-	signatureHash := sha256.Sum256(signatureRaw)
-	record := &updateRecord{
-		Release: manifest.Release, Channel: manifest.Channel, Sequence: manifest.Sequence,
-		PublishedAt: manifest.PublishedAt, Notes: manifest.Notes,
-		ArtifactID:     artifact.ID,
-		ArtifactFile:   filepath.Join(u.transactionsDir, txnName, "chef_cookmodes.apk"),
-		ArtifactSize:   artifact.Size,
-		ArtifactSHA256: artifact.SHA256, AppID: artifact.AppID, VersionCode: artifact.VersionCode,
-		StagedAt:       u.now().UTC().Format(time.RFC3339),
-		ManifestSHA256: hex.EncodeToString(manifestHash[:]), SignatureSHA256: hex.EncodeToString(signatureHash[:]),
-	}
+	record.ArtifactFile = filepath.Join(u.transactionsDir, txnName, "chef_cookmodes.apk")
+	record.StagedAt = u.now().UTC().Format(time.RFC3339)
 	if err := writeJSONAtomic(filepath.Join(txnDir, "pending.json"), record, 0o644); err != nil {
-		u.setError(fmt.Errorf("write pending update record: %w", err))
-		return u.Status(), err
+		return fmt.Errorf("write pending update record: %w", err)
 	}
-	hashLine := artifact.SHA256 + "  chef_cookmodes.apk\n"
+	hashLine := record.ArtifactSHA256 + "  chef_cookmodes.apk\n"
 	if err := writeTextAtomic(filepath.Join(txnDir, "pending.sha256"), hashLine, 0o644); err != nil {
-		u.setError(fmt.Errorf("write pending hash marker: %w", err))
-		return u.Status(), err
+		return fmt.Errorf("write pending hash marker: %w", err)
 	}
 	if err := syncDir(txnDir); err != nil {
-		u.setError(fmt.Errorf("sync update transaction: %w", err))
-		return u.Status(), err
+		return fmt.Errorf("sync update transaction: %w", err)
 	}
 	finalDir := filepath.Join(u.transactionsDir, txnName)
 	if err := os.Rename(txnDir, finalDir); err != nil {
-		u.setError(fmt.Errorf("commit update transaction: %w", err))
-		return u.Status(), err
+		return fmt.Errorf("commit update transaction: %w", err)
 	}
 	cleanupTxn = false
 	if err := syncDir(u.transactionsDir); err != nil {
 		_ = os.RemoveAll(finalDir)
-		u.setError(fmt.Errorf("sync committed update directory: %w", err))
-		return u.Status(), err
+		return fmt.Errorf("sync committed update directory: %w", err)
 	}
 	if err := writeTextAtomic(u.readyFile, txnName+"\n", 0o644); err != nil {
-		u.setError(fmt.Errorf("publish update commit marker: %w", err))
-		return u.Status(), err
+		return fmt.Errorf("publish update commit marker: %w", err)
 	}
-	if pending != nil {
-		u.removePreviousTransaction(pending)
+	if previous != nil {
+		u.removePreviousTransaction(previous)
 	}
 	u.mu.Lock()
 	u.pending = record
 	u.status.Pending = pendingUpdate(record)
-	u.status.Available = releaseFromManifest(manifest, artifact, u.now().UTC())
 	u.status.State = "staged"
 	u.status.LastCheckedAt = u.now().UTC().Format(time.RFC3339)
 	u.status.LastError = ""
 	u.mu.Unlock()
-	return u.Status(), nil
+	return nil
 }
 
 func (u *Updater) createUpdateTransaction() (string, string, error) {
@@ -661,6 +679,12 @@ func (u *Updater) downloadArtifact(ctx context.Context, uurl *url.URL, artifact 
 	if resp.ContentLength > artifact.Size {
 		return "", fmt.Errorf("artifact Content-Length %d exceeds signed size %d", resp.ContentLength, artifact.Size)
 	}
+	return writeVerifiedArtifact(resp.Body, artifact, destDir)
+}
+
+// writeVerifiedArtifact copies a Chef APK into destDir/chef_cookmodes.apk, keeping it only
+// if it is exactly the signed size and SHA-256 and opens as an APK.
+func writeVerifiedArtifact(r io.Reader, artifact updatelib.Artifact, destDir string) (string, error) {
 	tmp, err := os.CreateTemp(destDir, ".chef-*.part")
 	if err != nil {
 		return "", err
@@ -674,13 +698,13 @@ func (u *Updater) downloadArtifact(ctx context.Context, uurl *url.URL, artifact 
 		}
 	}()
 	hash := sha256.New()
-	limited := &io.LimitedReader{R: resp.Body, N: artifact.Size + 1}
+	limited := &io.LimitedReader{R: r, N: artifact.Size + 1}
 	n, err := io.Copy(io.MultiWriter(tmp, hash), limited)
 	if err != nil {
 		return "", err
 	}
 	if n != artifact.Size {
-		return "", fmt.Errorf("artifact size mismatch: downloaded %d bytes, signed %d", n, artifact.Size)
+		return "", fmt.Errorf("artifact size mismatch: got %d bytes, signed %d", n, artifact.Size)
 	}
 	gotHash := hex.EncodeToString(hash.Sum(nil))
 	if subtle.ConstantTimeCompare([]byte(gotHash), []byte(artifact.SHA256)) != 1 {
@@ -969,6 +993,10 @@ func (u *Updater) handleLocalUpdate(w http.ResponseWriter, r *http.Request) {
 		status, err = u.Check(ctx)
 	case "/local/update/stage":
 		status, err = u.Stage(ctx)
+	case "/local/update/restore":
+		status, err = u.RestoreBackup()
+	case "/local/update/upload":
+		status, err = u.StageFile(http.MaxBytesReader(w, r.Body, maxUploadBytes))
 	default:
 		http.NotFound(w, r)
 		return

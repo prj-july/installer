@@ -147,8 +147,42 @@ If the per-home CA is not trusted by the browser, install the CA from
 `/local/ca.crt` first. HTTP status remains readable, but check/stage controls
 are disabled there so the control token never crosses the LAN in plaintext.
 
-In **Software updates**, enter the control token, choose **Check for update**,
-then **Stage for next boot**. Once staged, power-cycle the oven normally.
+The page calls the control token the **update password**. On the **Updates** tab,
+enter it, choose **Check now**, then **Download and get ready**. Once it is ready,
+power-cycle the oven normally.
+
+The installer's last screen shows an **Update password** QR code, and the same
+code is saved on the stick as `/june-logs/update-password-qr.svg`. It opens
+`https://<oven>/local#updates&pw=<token>`: the token sits in the URL fragment,
+which browsers never send, so it stays out of the network and the oven's
+request log. The page keeps it for that browser tab and removes it from the
+address bar.
+
+### Install from a file
+
+For an oven without internet access, zip a published repository and upload it
+from **Updates → Install from a file**:
+
+```sh
+golocal/bin/june-update-publisher bundle -repo dist/oven-updates/stable -out june-chef-2026.10.26.zip
+```
+
+The bundle is `manifest.json`, `manifest.sig` and the artifact the manifest
+names, optionally inside one folder. The oven checks it exactly like a
+download (signature, channel, target, expiry, size, SHA-256, APK structure,
+and a sequence newer than the installed one) and stages it through the same
+transaction. `POST /local/update/upload` takes the ZIP as the request body.
+
+### Go back to the previous app
+
+After a wireless update has been applied, the boot applier's backup
+(`/data/june/chef_stock_backup.apk`) is the Chef APK that update replaced.
+**Updates → Go back to the previous app** (`POST /local/update/restore`, same
+HTTPS and password checks) stages that backup as a normal transaction. The
+restore record keeps the current release sequence, so going back never
+re-opens older signed releases: the next update must be newer than the one
+that was undone. Right after a restore the backup holds the undone update, so
+the page does not offer another restore.
 
 The command-line client is an alternative:
 

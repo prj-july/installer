@@ -26,6 +26,7 @@ const usage = `usage:
   june-update-publisher verify -public-key KEY.txt -manifest manifest.json -signature manifest.sig
   june-update-publisher publish -private-key KEY.pem -out DIR \
     -release ID -sequence N -artifact chef=Chef.apk [options]
+  june-update-publisher bundle -repo DIR -out RELEASE.zip
 `
 
 func main() {
@@ -41,6 +42,8 @@ func main() {
 		err = verify(os.Args[2:])
 	case "publish":
 		err = publish(os.Args[2:])
+	case "bundle":
+		err = bundle(os.Args[2:])
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 		return
@@ -349,4 +352,70 @@ func writeExclusive(path string, b []byte, mode os.FileMode) error {
 		return err
 	}
 	return f.Close()
+}
+
+// bundle zips a published repository directory (manifest.json, manifest.sig and the
+// artifacts the manifest names) into one file for /local's "Install from a file". It signs
+// nothing: the oven checks the same signature it checks for a download.
+func bundle(args []string) error {
+	fs := flag.NewFlagSet("bundle", flag.ContinueOnError)
+	repo := fs.String("repo", "", "published repository directory (publish -out)")
+	out := fs.String("out", "", "bundle .zip to write")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *repo == "" || *out == "" {
+		return errors.New("-repo and -out are required")
+	}
+	manifestBytes, err := os.ReadFile(filepath.Join(*repo, "manifest.json"))
+	if err != nil {
+		return err
+	}
+	var m updatelib.Manifest
+	if err := json.Unmarshal(manifestBytes, &m); err != nil {
+		return fmt.Errorf("manifest.json: %w", err)
+	}
+	names := []string{"manifest.json", "manifest.sig"}
+	for _, a := range m.Artifacts {
+		if !updatelib.SafeRelativePath(a.File) {
+			return fmt.Errorf("unsafe artifact path %q", a.File)
+		}
+		names = append(names, a.File)
+	}
+	f, err := os.CreateTemp(filepath.Dir(*out), ".bundle-*.zip")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	defer os.Remove(tmp)
+	zw := zip.NewWriter(f)
+	for _, name := range names {
+		src, err := os.Open(filepath.Join(*repo, filepath.FromSlash(name)))
+		if err != nil {
+			f.Close()
+			return err
+		}
+		// APKs are already compressed; store them so the oven reads them straight through.
+		w, err := zw.CreateHeader(&zip.FileHeader{Name: name, Method: zip.Store, Modified: time.Now()})
+		if err == nil {
+			_, err = io.Copy(w, src)
+		}
+		src.Close()
+		if err != nil {
+			f.Close()
+			return err
+		}
+	}
+	if err := zw.Close(); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, *out); err != nil {
+		return err
+	}
+	fmt.Printf("bundled %s sequence=%d into %s\n", m.Release, m.Sequence, *out)
+	return nil
 }

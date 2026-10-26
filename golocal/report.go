@@ -34,6 +34,43 @@ var (
 type reportRequest struct {
 	Note    string `json:"note"`
 	Contact string `json:"contact"`
+	// IncludeLogs sends the recent error lines too. Missing means yes, as before.
+	IncludeLogs *bool `json:"include_logs"`
+}
+
+// reportDiagnostics is exactly what a report carries besides the note and contact, so the
+// preview on /local shows the same thing Send report sends.
+func reportDiagnostics(hub *Hub, cfg *Config, includeLogs bool) (any, error) {
+	ensureFreshStatus(hub, cfg)
+	d := currentStatus(hub, cfg)
+	if !includeLogs {
+		d.Errors = []ErrorEntry{}
+	}
+	return redactedStatus(d)
+}
+
+// GET /local/report/preview?logs=0|1 shows the redacted diagnostics a report would send.
+// It reads the same status /local/status does and sends nothing.
+func handleLocalReportPreview(hub *Hub, cfg *Config, w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", "GET")
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"success": false, "error": "method not allowed"})
+		return
+	}
+	diag, err := reportDiagnostics(hub, cfg, r.URL.Query().Get("logs") != "0")
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false, "error": "could not collect diagnostics"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"success": true, "url": reportURL(cfg), "diagnostics": diag})
+}
+
+func reportURL(cfg *Config) string {
+	if cfg.ReportURL != "" {
+		return cfg.ReportURL
+	}
+	return defaultReportURL
 }
 
 func handleLocalReport(hub *Hub, cfg *Config, w http.ResponseWriter, r *http.Request) {
@@ -67,19 +104,14 @@ func handleLocalReport(hub *Hub, cfg *Config, w http.ResponseWriter, r *http.Req
 	reportLastAt = time.Now()
 	reportMu.Unlock()
 
-	ensureFreshStatus(hub, cfg)
-	diag, err := redactedStatus(currentStatus(hub, cfg))
+	diag, err := reportDiagnostics(hub, cfg, req.IncludeLogs == nil || *req.IncludeLogs)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false, "error": "could not collect diagnostics"})
 		return
 	}
-	url := cfg.ReportURL
-	if url == "" {
-		url = defaultReportURL
-	}
 	ctx, cancel := context.WithTimeout(r.Context(), reportTimeout)
 	defer cancel()
-	code, err := sendReport(ctx, url, map[string]any{
+	code, err := sendReport(ctx, reportURL(cfg), map[string]any{
 		"source":      "oven",
 		"note":        truncate(note, 2000),
 		"contact":     truncate(strings.TrimSpace(req.Contact), 200),

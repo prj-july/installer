@@ -77,4 +77,21 @@ func TestPublishAndVerifyRepository(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "is not newer") {
 		t.Fatalf("expected local sequence downgrade protection, got %v", err)
 	}
+
+	bundlePath := filepath.Join(root, "release.zip")
+	if err := bundle([]string{"-repo", out, "-out", bundlePath}); err != nil {
+		t.Fatal(err)
+	}
+	zr, err := zip.OpenReader(bundlePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer zr.Close()
+	var names []string
+	for _, f := range zr.File {
+		names = append(names, f.Name)
+	}
+	if strings.Join(names, ",") != "manifest.json,manifest.sig,artifacts/Chef_test.apk" {
+		t.Fatalf("bundle holds %v", names)
+	}
 }
