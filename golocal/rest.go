@@ -49,6 +49,13 @@ func handleREST(hub *Hub, cfg *Config, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Reports read their own small, capped body.
+	if path == "/local/report" {
+		logLine("[rest] %s %s ua=%s", r.Method, path, r.UserAgent())
+		handleLocalReport(hub, cfg, w, r)
+		return
+	}
+
 	bodyBytes, _ := io.ReadAll(r.Body)
 	body := string(bodyBytes)
 	mediaUpload := r.Method == "POST" &&

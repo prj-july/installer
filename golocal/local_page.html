@@ -41,9 +41,12 @@ button.primary{background:#0b4a67;border-color:#16779e}
 button:disabled{cursor:not-allowed;opacity:.48}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .field{display:block;margin:10px 0}.field span{display:block;color:var(--text);font-weight:600;margin-bottom:5px}
-.field input{width:100%;background:#090d13;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:13px ui-monospace,SFMono-Regular,Menlo,monospace}
+.field input,.field textarea{width:100%;background:#090d13;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:13px ui-monospace,SFMono-Regular,Menlo,monospace}
 .notice{border:1px solid #24506a;background:#0b1b26;color:var(--text);border-radius:8px;padding:10px 12px;margin:10px 0}
 .notice.bad{border-color:#6b2227;background:#1c0f10}
+.report{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:18px 0 0}
+.report h2{font-size:16px;margin:0 0 4px}.report p{color:var(--dim);margin:0;font-size:13px}
+.field textarea{font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:72px;resize:vertical}
 noscript{display:block;background:#1a1608;border:1px solid #4a3b12;padding:12px;border-radius:10px}
 </style>
 </head>
@@ -60,6 +63,14 @@ noscript{display:block;background:#1a1608;border:1px solid #4a3b12;padding:12px;
 <section class="tiles" id="tiles"></section>
 <section id="problems"></section>
 <section id="sections"></section>
+<section class="report" id="report">
+  <h2>Report a problem</h2>
+  <p>Sends your note and this page's diagnostics to Project July. Tokens, keys, serial numbers and account names are left out. <a href="/local/status" style="color:var(--accent)">See the diagnostics</a>.</p>
+  <label class="field"><span>What went wrong?</span><textarea id="report-note" maxlength="2000" placeholder="For example: the app says disconnected after a power cut"></textarea></label>
+  <label class="field"><span>Email for a reply (optional)</span><input id="report-contact" type="email" maxlength="200" autocomplete="email"></label>
+  <div class="actions"><button class="primary" type="button" id="report-send">Send report</button></div>
+  <div id="report-msg" class="notice" hidden></div>
+</section>
 <footer>
   <button id="copy">Copy diagnostics</button>
   <a href="/local/status" download="june-local-status.json">Download diagnostics</a>
@@ -68,7 +79,7 @@ noscript{display:block;background:#1a1608;border:1px solid #4a3b12;padding:12px;
   <a href="https://github.com/prj-july/installer/releases/tag/v{{INSTALLER_VERSION}}">Release notes</a>
   <a href="https://project-july.org/setup">Setup guide</a>
   <a href="https://github.com/prj-july/installer">Repository</a>
-  <a href="https://github.com/prj-july/installer/issues/new">Report a problem</a>
+  <a href="https://github.com/prj-july/installer/issues/new">Open a GitHub issue</a>
 </footer>
 </main>
 <script id="initial-status" type="application/json">{{JSON}}</script>
@@ -336,6 +347,26 @@ $('sections').addEventListener('click', (event) => {
   if (summary && summary.parentElement) userToggled.add(summary.parentElement.id);
   const button = event.target.closest('[data-update]');
   if (button) runUpdateAction(button.getAttribute('data-update'));
+});
+$('report-send').addEventListener('click', async () => {
+  const note = $('report-note').value.trim();
+  const msg = $('report-msg');
+  const say = (text, bad) => { msg.hidden = false; msg.className = bad ? 'notice bad' : 'notice'; msg.textContent = text; };
+  if (!note) { say('Say briefly what went wrong first.', true); return; }
+  $('report-send').disabled = true;
+  say('Sending…', false);
+  try {
+    const res = await fetch('/local/report', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note, contact: $('report-contact').value.trim() }) });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok || !out.success) throw new Error(out.error || ('HTTP ' + res.status));
+    say(`Sent. Your report code is ${out.code}. Quote it if you write to us.`, false);
+    $('report-note').value = '';
+  } catch (e) {
+    say(`Couldn't send the report: ${e.message}. You can use Download diagnostics and open a GitHub issue instead.`, true);
+  } finally {
+    setTimeout(() => { $('report-send').disabled = false; }, 3000);
+  }
 });
 render(initial);
 setInterval(()=>{ if(!document.hidden) refresh(); }, 7000);
