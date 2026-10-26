@@ -21,6 +21,12 @@ Wire example (toast level 5 -> plan_index 4):
 Omitted or negative plan_index keeps the stock behaviour (first plan), so old
 clients are unaffected.
 
+It also adds a "Project July" tile to Chef's own home-screen launcher. The tile
+(mode 0x30) opens june-local's oven-side Updates page
+(http://127.0.0.1/local/oven) in the full-screen OvenUpdatesDialog WebView. A
+home-screen tile, not a Settings row: Chef's Settings screen belongs to the
+separate JuneSettings.apk, which a Chef-only patch cannot change.
+
 Usage: python3 patch.py <apktool-decoded-dir>
 """
 
@@ -503,21 +509,105 @@ def patch_remote_command_receiver(decoded):
 
 UPDATES_MARKER = "June Local: updates screen"
 HELPER_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "smali")
+LAUNCHER_DIR = "smali/com/junelife/device/chef/ui/launcher"
 
-# Where Chef opens the oven's Updates screen. The helper classes are generic; this is the
-# one Chef-specific spot: (smali file under the decoded tree, an anchor line that occurs
-# exactly once in it, the smali inserted after that anchor). For example, after a Settings
-# row view is inflated into v0:
-#   ("smali/com/junelife/device/chef/ui/settings/SettingsActivity.smali",
-#    "    invoke-virtual {p0, v1}, ...->findViewById(I)Landroid/view/View;\n\n    move-result-object v0\n",
-#    "    invoke-static {v0}, Lcom/projectjuly/chef/OvenUpdatesDialog;->attach(Landroid/view/View;)V\n")
-# attach() sets a long-press listener; OvenUpdatesDialog$Open is also an OnClickListener, and
-# OvenUpdatesDialog.show(Context) can be called directly from an existing click handler.
-SETTINGS_HOOK = None
+# The "Project July" tile. It is a launcher cell with a new mode id (0x30; the existing
+# MODE_ID_* values top out at 0x25) and a literal label. The label is a smali constant
+# because the build uses `apktool d -r`, so resources.arsc stays binary and no new string
+# resource can be added.
+PROJECT_JULY_METHOD = """.method public final projectJuly()Lcom/junelife/device/chef/ui/launcher/LauncherListBuilder;
+    .locals 8
+
+    # June Local: updates screen. Home-screen tile that opens june-local's
+    # Updates page; LauncherActivity.onIconClicked handles mode 0x30.
+    move-object v0, p0
+
+    check-cast v0, Lcom/junelife/device/chef/ui/launcher/LauncherListBuilder;
+
+    const/4 v1, 0x1
+
+    new-array v1, v1, [Lcom/junelife/device/chef/ui/launcher/LauncherCell;
+
+    new-instance v2, Lcom/junelife/device/chef/ui/launcher/LauncherCell$Icon;
+
+    new-instance v3, Lcom/junelife/device/chef/ui/launcher/LauncherIconViewData;
+
+    # launcher_chef (0x7f0800a5); launcher_settings (0x7f0800b0) is the fallback.
+    new-instance v4, Lcom/junelife/device/commonui/image/DrawableImageResource;
+
+    const v5, 0x7f0800a5
+
+    invoke-direct {v4, v5}, Lcom/junelife/device/commonui/image/DrawableImageResource;-><init>(I)V
+
+    check-cast v4, Lcom/junelife/device/commonui/image/ImageResource;
+
+    # Literal label: the build keeps resources binary (apktool d -r).
+    const-string v5, "Project July"
+
+    iget-object v6, p0, Lcom/junelife/device/chef/ui/launcher/LauncherListBuilder;->cells:Ljava/util/List;
+
+    invoke-interface {v6}, Ljava/util/List;->size()I
+
+    move-result v6
+
+    const/16 v7, 0x30
+
+    invoke-direct {v3, v7, v4, v5, v6}, Lcom/junelife/device/chef/ui/launcher/LauncherIconViewData;-><init>(ILcom/junelife/device/commonui/image/ImageResource;Ljava/lang/String;I)V
+
+    invoke-direct {v2, v3}, Lcom/junelife/device/chef/ui/launcher/LauncherCell$Icon;-><init>(Lcom/junelife/device/chef/ui/launcher/LauncherIconViewData;)V
+
+    check-cast v2, Lcom/junelife/device/chef/ui/launcher/LauncherCell;
+
+    const/4 v3, 0x0
+
+    aput-object v2, v1, v3
+
+    invoke-virtual {p0, v1}, Lcom/junelife/device/chef/ui/launcher/LauncherListBuilder;->add([Lcom/junelife/device/chef/ui/launcher/LauncherCell;)Lcom/junelife/device/chef/ui/launcher/LauncherListBuilder;
+
+    return-object v0
+.end method
+
+"""
+
+FILL_ANCHOR = """    invoke-virtual {p1}, Lcom/junelife/device/chef/ui/launcher/LauncherListBuilder;->settings()Lcom/junelife/device/chef/ui/launcher/LauncherListBuilder;
+
+    move-result-object p1"""
+
+FILL_INJECT = FILL_ANCHOR + """
+
+    # June Local: updates screen. Project July tile (mode 0x30) after Settings.
+    invoke-virtual {p1}, Lcom/junelife/device/chef/ui/launcher/LauncherListBuilder;->projectJuly()Lcom/junelife/device/chef/ui/launcher/LauncherListBuilder;
+
+    move-result-object p1"""
+
+ON_ICON_ANCHOR = """.method public onIconClicked(ILjava/lang/String;Ljava/lang/String;)V
+    .locals 7
+
+    const-string v0, "LauncherActivity\""""
+
+ON_ICON_INJECT = """.method public onIconClicked(ILjava/lang/String;Ljava/lang/String;)V
+    .locals 7
+
+    # June Local: updates screen. Project July tile (mode 0x30) opens the
+    # full-screen WebView. p0 is the LauncherActivity, so the Dialog gets a
+    # valid window token. v4 is overwritten immediately by the stock code.
+    const/16 v4, 0x30
+
+    if-ne p1, v4, :not_project_july
+
+    invoke-static {p0}, Lcom/projectjuly/chef/OvenUpdatesDialog;->show(Landroid/content/Context;)V
+
+    return-void
+
+    :not_project_july
+    const-string v0, "LauncherActivity\""""
 
 
 def add_updates_screen(decoded):
-    """Adds the OvenUpdatesDialog classes in their own dex, then hooks them into Settings."""
+    """Adds the OvenUpdatesDialog classes in their own dex.
+
+    The home-screen tile that opens them is added by patch_launcher_tile().
+    """
     dirs = sorted(d for d in os.listdir(decoded) if d == "smali" or d.startswith("smali_classes"))
     for d in dirs:
         if os.path.exists(os.path.join(decoded, d, "com/projectjuly/chef/OvenUpdatesDialog.smali")):
@@ -535,21 +625,55 @@ def add_updates_screen(decoded):
             write(os.path.join(dest, name), read(os.path.join(src, name)))
         print("[+] updates screen classes added as smali_classes%d" % n)
 
-    if SETTINGS_HOOK is None:
-        print("[!] updates screen is not hooked into Chef's Settings yet (SETTINGS_HOOK in patch.py)")
-        return
-    rel, anchor, inject = SETTINGS_HOOK
-    path = os.path.join(decoded, rel)
+
+def patch_launcher_tile(decoded):
+    """Adds the "Project July" home-screen tile and its click handler.
+
+    Product decision: the real Settings screen is a separate app
+    (JuneSettings.apk), so a Chef-only patch cannot add a row there. The tile
+    lives in Chef's own launcher instead. Each injected region carries
+    UPDATES_MARKER, so re-running the patch skips files already patched.
+    """
+    builder = os.path.join(decoded, LAUNCHER_DIR, "LauncherListBuilder.smali")
+    text = read(builder)
+    if UPDATES_MARKER in text:
+        print("[=] LauncherListBuilder.projectJuly already present")
+    else:
+        anchor = ".method public final settings()Lcom/junelife/device/chef/ui/launcher/LauncherListBuilder;\n"
+        count = text.count(anchor)
+        if count != 1:
+            raise SystemExit("LauncherListBuilder settings anchor matched %d" % count)
+        write(builder, text.replace(anchor, PROJECT_JULY_METHOD + anchor, 1))
+        print("[+] LauncherListBuilder.projectJuly added (mode 0x30, icon 0x7f0800a5)")
+
+    for name in ("Dragon", "Meerkat"):
+        path = os.path.join(decoded, LAUNCHER_DIR, "LauncherListSource$%s.smali" % name)
+        text = read(path)
+        if UPDATES_MARKER in text:
+            print("[=] LauncherListSource$%s.fill already calls projectJuly" % name)
+            continue
+        count = text.count(FILL_ANCHOR)
+        if count != 1:
+            raise SystemExit(
+                "LauncherListSource$%s fill anchor matched %d" % (name, count)
+            )
+        write(path, text.replace(FILL_ANCHOR, FILL_INJECT, 1))
+        print("[+] LauncherListSource$%s.fill calls projectJuly after settings" % name)
+
+    path = os.path.join(decoded, LAUNCHER_DIR, "LauncherActivity.smali")
     text = read(path)
     if UPDATES_MARKER in text:
-        print("[=] Settings already opens the updates screen")
-        return
-    count = text.count(anchor)
-    if count != 1:
-        raise SystemExit("updates screen hook anchor matched %d in %s" % (count, rel))
-    text = text.replace(anchor, anchor + "\n    # " + UPDATES_MARKER + "\n" + inject, 1)
-    write(path, text)
-    print("[+] Settings opens the updates screen (%s)" % rel)
+        print("[=] LauncherActivity.onIconClicked already handles mode 0x30")
+    else:
+        if ":not_project_july" in text:
+            raise SystemExit("LauncherActivity already has a :not_project_july label")
+        count = text.count(ON_ICON_ANCHOR)
+        if count != 1:
+            raise SystemExit(
+                "LauncherActivity onIconClicked anchor matched %d" % count
+            )
+        write(path, text.replace(ON_ICON_ANCHOR, ON_ICON_INJECT, 1))
+        print("[+] LauncherActivity.onIconClicked opens the updates screen for mode 0x30")
 
 
 def main():
@@ -563,6 +687,7 @@ def main():
     patch_remote_food_load_listener(decoded)
     patch_remote_command_receiver(decoded)
     add_updates_screen(decoded)
+    patch_launcher_tile(decoded)
     print("[+] Chef cook-modes patch complete")
 
 
