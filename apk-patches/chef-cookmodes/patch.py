@@ -501,6 +501,57 @@ def patch_remote_command_receiver(decoded):
     print("[+] RemoteCommandReceiver primitive start passes plan_index")
 
 
+UPDATES_MARKER = "June Local: updates screen"
+HELPER_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "smali")
+
+# Where Chef opens the oven's Updates screen. The helper classes are generic; this is the
+# one Chef-specific spot: (smali file under the decoded tree, an anchor line that occurs
+# exactly once in it, the smali inserted after that anchor). For example, after a Settings
+# row view is inflated into v0:
+#   ("smali/com/junelife/device/chef/ui/settings/SettingsActivity.smali",
+#    "    invoke-virtual {p0, v1}, ...->findViewById(I)Landroid/view/View;\n\n    move-result-object v0\n",
+#    "    invoke-static {v0}, Lcom/projectjuly/chef/OvenUpdatesDialog;->attach(Landroid/view/View;)V\n")
+# attach() sets a long-press listener; OvenUpdatesDialog$Open is also an OnClickListener, and
+# OvenUpdatesDialog.show(Context) can be called directly from an existing click handler.
+SETTINGS_HOOK = None
+
+
+def add_updates_screen(decoded):
+    """Adds the OvenUpdatesDialog classes in their own dex, then hooks them into Settings."""
+    dirs = sorted(d for d in os.listdir(decoded) if d == "smali" or d.startswith("smali_classes"))
+    for d in dirs:
+        if os.path.exists(os.path.join(decoded, d, "com/projectjuly/chef/OvenUpdatesDialog.smali")):
+            print("[=] updates screen classes already present in %s" % d)
+            break
+    else:
+        # A fresh smali_classesN keeps the helper out of the (possibly full) primary dex.
+        n = 2
+        while "smali_classes%d" % n in dirs:
+            n += 1
+        dest = os.path.join(decoded, "smali_classes%d" % n, "com/projectjuly/chef")
+        os.makedirs(dest)
+        src = os.path.join(HELPER_DIR, "com/projectjuly/chef")
+        for name in sorted(os.listdir(src)):
+            write(os.path.join(dest, name), read(os.path.join(src, name)))
+        print("[+] updates screen classes added as smali_classes%d" % n)
+
+    if SETTINGS_HOOK is None:
+        print("[!] updates screen is not hooked into Chef's Settings yet (SETTINGS_HOOK in patch.py)")
+        return
+    rel, anchor, inject = SETTINGS_HOOK
+    path = os.path.join(decoded, rel)
+    text = read(path)
+    if UPDATES_MARKER in text:
+        print("[=] Settings already opens the updates screen")
+        return
+    count = text.count(anchor)
+    if count != 1:
+        raise SystemExit("updates screen hook anchor matched %d in %s" % (count, rel))
+    text = text.replace(anchor, anchor + "\n    # " + UPDATES_MARKER + "\n" + inject, 1)
+    write(path, text)
+    print("[+] Settings opens the updates screen (%s)" % rel)
+
+
 def main():
     if len(sys.argv) != 2:
         raise SystemExit(__doc__)
@@ -511,6 +562,7 @@ def main():
     patch_start_cook_command_data(decoded)
     patch_remote_food_load_listener(decoded)
     patch_remote_command_receiver(decoded)
+    add_updates_screen(decoded)
     print("[+] Chef cook-modes patch complete")
 
 

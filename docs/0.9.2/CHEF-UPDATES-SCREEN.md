@@ -22,28 +22,48 @@ So Chef only needs a way in: **one Settings entry that opens a full-screen WebVi
 
 ## The patch
 
-Extend `apk-patches/chef-cookmodes/patch.py` so the existing build produces one APK with both
-the cook-modes changes and this one. Give it its own idempotent marker, for example
-`June Local: updates screen`.
+Most of it is already in this branch:
 
-1. **New activity**, written in smali by hand: `com/projectjuly/chef/OvenUpdatesActivity extends android/app/Activity`.
-   - `onCreate`: request no title and fullscreen to match Chef's other screens (copy the window flags Chef's Settings activity uses).
-   - Create a `WebView`. Turn on JavaScript and DOM storage. Set a `WebViewClient` whose `shouldOverrideUrlLoading` keeps only `http://127.0.0.1/` URLs in the view and refuses everything else.
-   - Set it as the content view, then `loadUrl("http://127.0.0.1/local/oven")`.
-   - `onBackPressed`: `finish()`.
-   - `onDestroy`: `webView.destroy()`.
-2. **AndroidManifest.xml:** register the activity with `exported="false"`, the same `screenOrientation` and theme as Chef's Settings activity. Chef must already have INTERNET; check it.
-3. **Settings entry:** find Chef's Settings / About screen and add a row labelled
-   "Project July updates" that runs `startActivity(new Intent(this, OvenUpdatesActivity.class))`.
-   The build decodes with `apktool d -r` (resources kept raw), so **you can't add new layout or
-   string resources**. Build the row in code, or reuse an existing row view and set its text in
-   smali. If adding a row is fragile, a long-press on the About/version row is acceptable. Write
-   down which way you chose in the README.
-4. **Safety:**
-   - Run `scripts/check_apk_resources.py` on the output.
-   - Confirm that `apktool d` of the result shows the new class and the manifest entry.
-   - Confirm that cook modes still pass the existing live checks.
-   - Remember 0.9.0: the APK must never be rebuilt on the P: share or any case-insensitive filesystem. Build in `/tmp` or `~`.
+- `apk-patches/chef-cookmodes/smali/com/projectjuly/chef/` holds `OvenUpdatesDialog` and its
+  inner classes, written by hand in smali:
+  - `show(Context)` opens a full-screen `Dialog` with a `WebView` on
+    `http://127.0.0.1/local/oven`, with JS and DOM storage on and no cache.
+  - `LocalOnly` keeps navigation on `http://127.0.0.1/` and refuses everything else.
+  - `Cleanup` destroys the WebView on dismiss.
+  - `Open` is an OnClickListener and OnLongClickListener that calls `show(view.getContext())`.
+  - `attach(View)` sets the long-press listener on a view.
+  - All of it runs under a `catch Throwable` that only logs, so it can't crash Chef.
+- It's a Dialog, not a new Activity, because `build_patched.sh` decodes with `apktool d -r`.
+  That keeps the manifest and resources binary, so there's no manifest entry or layout to add.
+- `patch.py` has a new `add_updates_screen()` step. It copies those classes into a fresh
+  `smali_classesN`, its own dex, so the primary dex's method count doesn't matter on ART.
+  Then it applies `SETTINGS_HOOK`.
+
+**What's left for you: fill in `SETTINGS_HOOK` in `patch.py`.** It's the one Chef-specific
+spot, a triple:
+1. the smali file in the decoded tree
+2. an anchor that occurs exactly once in that file
+3. the line inserted after the anchor
+
+Pick whatever is most robust in Chef's Settings/About screen. Either of these works:
+
+- `invoke-static {vX}, Lcom/projectjuly/chef/OvenUpdatesDialog;->attach(Landroid/view/View;)V`
+  on an existing row view, which gives you a long-press. This is the least intrusive option.
+- `invoke-static {p0}, Lcom/projectjuly/chef/OvenUpdatesDialog;->show(Landroid/content/Context;)V`
+  from an existing click handler, if there's a row that can be repurposed.
+  `p0` must be the Activity, or a context whose window token is the Activity's.
+
+If you can add a real "Project July updates" row with a code-built TextView and an
+`OvenUpdatesDialog$Open` click listener, even better, but it's optional for 0.9.2. Note in the
+README which entry you chose, so FnG knows where to find it (for example, long-press "About").
+
+I couldn't assemble the smali here. Please check that `apktool b` builds it cleanly, and that
+`baksmali` of the new dex shows the four classes.
+
+**Safety:**
+- Run `scripts/check_apk_resources.py` on the output.
+- Confirm that cook modes still pass the existing live checks.
+- Remember 0.9.0: never rebuild on the P: share or any case-insensitive filesystem. Build in `/tmp` or `~`.
 
 ## Testing on FnG's oven before release
 
